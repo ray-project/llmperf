@@ -1,0 +1,11 @@
+#Anyscale Endpoint
+ANYSCALE_API_BASE="https://console.endpoints.anyscale.com/m/v1"
+ANYSCALE_API_KEY="secret_xxxxx"
+
+#OpenAI Endpoint
+OPENAI_API_BASE="https://api.openai.com/v1"
+OPENAI_API_KEY="sk-xxxxx"                           
+
+#Fireworks Endpoint
+FIREWORKS_API_BASE="https://api.fireworks.ai/inference/v1"
+FIREWORKS_API_KEY="xxxxx"

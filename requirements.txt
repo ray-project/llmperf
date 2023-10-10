@@ -1,0 +1,10 @@
+openai
+num2words
+python_dotenv
+pandas
+tiktoken
+transformers
+matplotlib
+scikit-learn
+ray[default]
+tokenizers
