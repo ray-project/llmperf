@@ -137,8 +137,7 @@ def results_analysis(query_results, results_dict):
     gt_3_ttft = len(cdf[cdf['ttft'] > 3])/len(cdf)
     print(f'Mean TTFT: {mean_ttft*1000:.0f} ms (mean tokens in: {mean_tokens_in:.0f}, out: {mean_tokens_out:.0f})')
     print(f'TTFT > 3 s: {gt_3_ttft*100:.2f}%')
-    print(f'Mean tokens/s throughput (total in+out): {cdf.total_tokens_per_s.mean():.2f} token/s')  
-    print(f'Mean tokens/s throughput (out): {cdf.out_tokens_per_s.mean():.2f} token/s, inter token delay (out): {cdf.inter_tokens_delay.mean()*1000:.0f} ms/token')
+    print(f'ITL (out): {cdf.inter_tokens_delay.mean()*1000:.0f} ms/token, mean tokens/s output (out): {cdf.out_tokens_per_s.mean():.2f} token/s')
     
     value_counts = df['valid'].value_counts()
     #Put things in a dictionary and save the results 
@@ -168,13 +167,13 @@ if __name__ == '__main__':
     parser.add_argument("-m","--model", type=str, default="meta-llama/Llama-2-70b-chat-hf", help="model name")
     parser.add_argument("--random-lines-file-name", type=str, default="sonnet.txt", help="Prompt sample file name")
     parser.add_argument("--min-lines", type=int, default=15, help="min number of lines")
-    parser.add_argument("--max-lines", type=int, default=40, help="max number of lines")
+    parser.add_argument("--max-lines", type=int, default=50, help="max number of lines")
     parser.add_argument("--num-digits", type=int, default=3, help="number of digits for mismatch search")
     parser.add_argument("--sleep", type=int, default=0, help="sleep between rounds of requests (to deal with rate limiting)")
     parser.add_argument("-c","--concur-requests", type=int, default=10, help="number of concurrent requests")
     parser.add_argument("-r","--total-requests", type=int, default=300, help="number of total requests")
-    parser.add_argument("--max-tokens", type=int, default = 384, help="Upper limit on the number of returned tokens.")
-    parser.add_argument("--req-lines", type=int, default=4, help="Number of lines to request in prompt. Affects tokens out.")
+    parser.add_argument("--max-tokens", type=int, default = 384, help="Upper limit on the number of returned tokens to prevent 'runaway LLMs'.")
+    parser.add_argument("--req-lines", type=int, default=7, help="Number of lines to request in prompt. Affects tokens out.")
     parser.add_argument("--random-seed", type=int, default=117, help="Random seed to standardize results. By default fully random.")
 
     args = parser.parse_args()
