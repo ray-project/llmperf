@@ -3,8 +3,8 @@ num2words
 python_dotenv
 pandas
 tiktoken
-transformers
+transformers==4.33.3
 matplotlib
 scikit-learn
 ray[default]
-tokenizers
+tokenizers==0.13.3
