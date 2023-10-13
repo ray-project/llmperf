@@ -21,8 +21,11 @@ Currently supported endpoints include:
 
 - Any OpenAI compatible endpoints, including Anyscale Endpoints, 
 Anyscale Private Endpoints, OpenAI, etc
+- Together 
 - Vertex
 - SageMaker
+
+Please see `requirments.txt` for more details on dependency requirments.
 
 ## Upcoming refactor
 

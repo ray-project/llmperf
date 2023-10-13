@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from transformers import LlamaTokenizerFast
 
-FRAMEWORKS = ["anyscale","openai","fireworks","vertexai","sagemaker","perplexity"]
+FRAMEWORKS = ["anyscale","openai","fireworks","vertexai","sagemaker","perplexity","together"]
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
 
@@ -20,6 +20,46 @@ os.environ['TOKENIZERS_PARALLELISM'] = 'true'
 tokenizer = LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer")
 sys_prompt = 'You are a helpful assistant that respeonds with the answer in the most concise possible way.'
 
+class LineIterator:
+    """
+    A helper class for parsing the byte stream input. 
+    Reference: https://aws.amazon.com/blogs/machine-learning/elevating-the-generative-ai-experience-introducing-streaming-support-in-amazon-sagemaker-hosting/
+    """
+    
+    def __init__(self, stream):
+        self.byte_iterator = iter(stream)
+        self.buffer = io.BytesIO()
+        self.read_pos = 0
+        self.ttft = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while True:
+            self.buffer.seek(self.read_pos)
+            line = self.buffer.readline()
+            if line and line[-1] == ord('\n'):
+                if self.ttft == 0:
+                    self.ttft = time.time()
+                self.read_pos += len(line)
+                return line[:-1], self.ttft, time.time()
+            # kyle: dealing with last ']' for chat output
+            if line and self.read_pos == self.buffer.getbuffer().nbytes-1:
+                self.read_pos +=1
+                return line, self.ttft, time.time()
+            try:
+                chunk = next(self.byte_iterator)
+            except StopIteration:
+                if self.read_pos < self.buffer.getbuffer().nbytes:
+                    continue
+                raise
+            if 'PayloadPart' not in chunk:
+                print('Unknown event type:' + chunk)
+                continue
+            self.buffer.seek(0, io.SEEK_END)
+            self.buffer.write(chunk['PayloadPart']['Bytes'])
+            
 
 #NOTE: The defaults are set to mirror our production traffic
 def prompt_generator(num_digits=3, min_lines=15, max_lines=1000, file_lines=[]) -> str:
@@ -44,7 +84,8 @@ def validate(ep_config, sample_lines):
     # The 4 is for the end and start tokens of the messages
     prompt, rnd_num = prompt_generator(args.num_digits, args.min_lines, args.max_lines, sample_lines)
     tokens_in = len(tokenizer.encode(prompt))+len(tokenizer.encode(sys_prompt)) + 4
-    
+    words = ''
+    st = et = ttft = 0
     if ep_config["framework"] in ["anyscale","openai","fireworks","perplexity"]:
         messages = [{'role': 'system','content': sys_prompt},
                     {'role': 'user','content' : prompt}]
@@ -61,8 +102,6 @@ def validate(ep_config, sample_lines):
                 # Do not set to false. You will get bogus results. 
                 stream = True
             )
-            words = ''
-            ttft = 0
             for tok in response: 
                 if tok.choices[0].delta:
                     delta = tok.choices[0].delta
@@ -73,7 +112,35 @@ def validate(ep_config, sample_lines):
             et = time.time() 
         except Exception as e:
             return ('Exception', -1, -1,-1,-1,str(e))    
-        
+    elif ep_config["framework"] == "together":
+        try:
+            st = time.time() 
+            url = ep_config["api_base"]
+            payload = {
+                "model": ep_config["model"],
+                "prompt": sys_prompt + prompt,
+                "max_tokens": args.max_tokens,
+                "temperature": 0,
+                "stream_tokens": True,
+            }
+            headers = {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "Authorization": f"Bearer {ep_config['api_key']}",
+            }
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            client = sseclient.SSEClient(response)
+            for event in client.events():
+                if ttft == 0:
+                    ttft = time.time() - st
+                if event.data == "[DONE]":
+                    break
+                partial_result = json.loads(event.data)
+                words += partial_result["choices"][0]["text"]
+            et = time.time() 
+        except Exception as e:
+            return ('Exception', -1, -1,-1,-1,str(e))       
     elif ep_config["framework"] == "vertexai":
         chat_model = ChatModel.from_pretrained(ep_config["model"])
         chat = chat_model.start_chat(
@@ -86,7 +153,6 @@ def validate(ep_config, sample_lines):
                 temperature=0,
                 max_output_tokens=args.max_tokens,
             )
-            ttft = 0 
             results = []
             for response in responses:
                 if ttft == 0:
@@ -124,7 +190,7 @@ def validate(ep_config, sample_lines):
             resp = json.loads(json_byte)
             ttft = ttft - st
             words = resp[0]["generation"]["content"]
-          
+            et = time.time()
         except Exception as e:
             return ('Exception', -1, -1,-1,-1,str(e))  
         
@@ -240,10 +306,14 @@ if __name__ == '__main__':
         endpoint_config["api_key"]=os.environ['OPENAI_API_KEY'] 
     elif args.framework == "fireworks":
         endpoint_config["api_base"]=os.environ['FIREWORKS_API_BASE'] 
-        endpoint_config["api_key"]=os.environ['FIREWORKS_API_KEY']     
+        endpoint_config["api_key"]=os.environ['FIREWORKS_API_KEY']    
     elif args.framework == "perplexity":
         endpoint_config["api_base"]=os.environ['PERPLEXITY_API_BASE'] 
         endpoint_config["api_key"]=os.environ['PERPLEXITY_API_KEY'] 
+    elif args.framework == "together":
+        import requests, sseclient
+        endpoint_config["api_base"]=os.environ['TOGETHER_API_BASE'] 
+        endpoint_config["api_key"]=os.environ['TOGETHER_API_KEY']  
     elif args.framework == "vertexai":
         import vertexai
         from vertexai.preview.language_models import ChatModel
@@ -262,7 +332,7 @@ if __name__ == '__main__':
     f = open(args.random_lines_file_name, 'r')
     sample_lines = f.readlines()
     f.close()
-    
+  
     ## Endpoint evaluation
     query_results = endpoint_evaluation(endpoint_config, sample_lines)
     
