@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from transformers import LlamaTokenizerFast
 
-FRAMEWORKS = ["anyscale","openai","fireworks","vertexai"]
+FRAMEWORKS = ["anyscale","openai","fireworks","vertexai","sagemaker","perplexity"]
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
 
@@ -44,56 +44,104 @@ def validate(ep_config, sample_lines):
     # The 4 is for the end and start tokens of the messages
     prompt, rnd_num = prompt_generator(args.num_digits, args.min_lines, args.max_lines, sample_lines)
     tokens_in = len(tokenizer.encode(prompt))+len(tokenizer.encode(sys_prompt)) + 4
-    messages = [
-        {
-            'role': 'system',
-            'content': sys_prompt
-        },
-        {
-            'role': 'user',
-            'content' : prompt
-        }
-    ]
     
-    try:
-        st = time.time() 
-        response = openai.ChatCompletion.create(
-            model = ep_config["model"], 
-            messages = messages,
-            api_key = ep_config["api_key"], 
-            api_base = ep_config["api_base"], 
-            max_tokens = args.max_tokens, 
-            # Please keep temp at 0. Otherwise increases the number of mismatches. 
-            temperature = 0, 
-            # Do not set to false. You will get bogus results. 
-            stream = True
+    if ep_config["framework"] in ["anyscale","openai","fireworks","perplexity"]:
+        messages = [{'role': 'system','content': sys_prompt},
+                    {'role': 'user','content' : prompt}]
+        try:
+            st = time.time() 
+            response = openai.ChatCompletion.create(
+                model = ep_config["model"], 
+                messages = messages,
+                api_key = ep_config["api_key"], 
+                api_base = ep_config["api_base"], 
+                max_tokens = args.max_tokens, 
+                # Please keep temp at 0. Otherwise increases the number of mismatches. 
+                temperature = 0, 
+                # Do not set to false. You will get bogus results. 
+                stream = True
+            )
+            words = ''
+            ttft = 0
+            for tok in response: 
+                if tok.choices[0].delta:
+                    delta = tok.choices[0].delta
+                    if 'content' in delta:
+                        if ttft == 0:
+                            ttft = time.time() - st
+                        words += delta['content']
+            et = time.time() 
+        except Exception as e:
+            return ('Exception', -1, -1,-1,-1,str(e))    
+        
+    elif ep_config["framework"] == "vertexai":
+        chat_model = ChatModel.from_pretrained(ep_config["model"])
+        chat = chat_model.start_chat(
+            context=sys_prompt,
         )
-        words = ''
-        ttft = 0
-        for tok in response: 
-            if tok.choices[0].delta:
-                delta = tok.choices[0].delta
-                if 'content' in delta:
-                    if ttft == 0:
-                        ttft = time.time() - st
-                    words += delta['content']
-        et = time.time() 
-        # Get rid of commas. 
-        tokens_out = len(tokenizer.encode(words))
-        nums = re.findall(r'\d+', words)
-        if len(nums) > 0:
-            retval = int(nums[0]) 
-            valid = 'OK'
-            cause = ''
-            if retval != rnd_num:
-                valid = 'Mismatch'
-                cause = f'Input = {rnd_num} output = {retval}\n.Output:\n {words}'
-        else:
+        try:
+            st = time.time() 
+            responses = chat.send_message_streaming(
+                message=prompt,
+                temperature=0,
+                max_output_tokens=args.max_tokens,
+            )
+            ttft = 0 
+            results = []
+            for response in responses:
+                if ttft == 0:
+                    ttft = time.time() - st
+                results.append(str(response))
+            words = "".join(results)
+            
+            et = time.time() 
+        except Exception as e:
+            return ('Exception', -1, -1,-1,-1,str(e))    
+        
+    elif ep_config["framework"] == "sagemaker":
+        sm_runtime = boto3.client("sagemaker-runtime", 
+                              region_name=ep_config['region'])
+        message = {
+            "inputs": [[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": prompt}]],
+            "parameters": {"max_new_tokens": args.max_tokens, 
+                           ## we can't set temperature to 0 in SM
+                           "temperature": 0.01}
+        }
+        try:
+            st = time.time()
+            response = sm_runtime.invoke_endpoint_with_response_stream(
+                EndpointName=ep_config['endpoint_name'],
+                ContentType="application/json",
+                Body=json.dumps(message),
+                CustomAttributes="accept_eula=true",
+            )
+            event_stream = response['Body']
+            json_byte = b''
+            for line, ttft, et in LineIterator(event_stream):
+                json_byte += line
+            resp = json.loads(json_byte)
+            ttft = ttft - st
+            words = resp[0]["generation"]["content"]
+          
+        except Exception as e:
+            return ('Exception', -1, -1,-1,-1,str(e))  
+        
+    # Get rid of commas. 
+    tokens_out = len(tokenizer.encode(words))
+    nums = re.findall(r'\d+', words)
+    if len(nums) > 0:
+        retval = int(nums[0]) 
+        valid = 'OK'
+        cause = ''
+        if retval != rnd_num:
             valid = 'Mismatch'
-            cause = f'Output unparseable. Input = {rnd_num}. Output:\n {words}'
-        return (valid, ttft, et-st, tokens_in, tokens_out, cause)
-    except Exception as e:
-        return ('Exception', -1, -1,-1,-1,str(e))
+            cause = f'Input = {rnd_num} output = {retval}\n.Output:\n {words}'
+    else:
+        valid = 'Mismatch'
+        cause = f'Output unparseable. Input = {rnd_num}. Output:\n {words}'
+    return (valid, ttft, et-st, tokens_in, tokens_out, cause)
 
 def endpoint_evaluation(ep_config, sample_lines):
     query_results = []
@@ -193,20 +241,30 @@ if __name__ == '__main__':
     elif args.framework == "fireworks":
         endpoint_config["api_base"]=os.environ['FIREWORKS_API_BASE'] 
         endpoint_config["api_key"]=os.environ['FIREWORKS_API_KEY']     
-    
+    elif args.framework == "perplexity":
+        endpoint_config["api_base"]=os.environ['PERPLEXITY_API_BASE'] 
+        endpoint_config["api_key"]=os.environ['PERPLEXITY_API_KEY'] 
+    elif args.framework == "vertexai":
+        import vertexai
+        from vertexai.preview.language_models import ChatModel
+        endpoint_config["api_base"]="VertexAI Endpoint"
+        endpoint_config["project_id"]=os.environ['VERTEXAI_PROJECT_ID']
+        vertexai.init(project=endpoint_config["project_id"])
+    elif args.framework == "sagemaker":
+        import boto3
+        endpoint_config["api_base"]="SageMaker Endpoint"
+        endpoint_config["region"]=os.environ['SAGEMAKER_REGION']
+        endpoint_config["endpoint_name"]=os.environ['SAGEMAKER_ENDPOINT_NAME']
+        
     endpoint_config["framework"] = args.framework
     endpoint_config["model"] = args.model
     
     f = open(args.random_lines_file_name, 'r')
     sample_lines = f.readlines()
     f.close()
-    #print(sample_lines)
     
     ## Endpoint evaluation
     query_results = endpoint_evaluation(endpoint_config, sample_lines)
-    
-    ##Pure debug purpose
-    #query_results = pd.read_json("fireworks-1694190875_raw.json")
     
     ## Results Analysis
     args.api_base = endpoint_config["api_base"]
