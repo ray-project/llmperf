@@ -12,6 +12,6 @@ tokenizers==0.13.3
 #requests
 #sseclient-py
 ### Extra dependency for Vertex AI
-#vertexai
+#google-cloud-aiplatform
 ### Extra dependency for SageMaker
 #boto3
