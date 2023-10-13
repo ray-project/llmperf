@@ -7,11 +7,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from transformers import LlamaTokenizerFast
 
-<<<<<<< HEAD
-FRAMEWORKS = ["anyscale","openai","fireworks","vertexai", "perplexity"]
-=======
 FRAMEWORKS = ["anyscale","openai","fireworks","vertexai","sagemaker","perplexity"]
->>>>>>> ca66d64d36b2a9e2fa27c2493f785da139209f9e
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
 
