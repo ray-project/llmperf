@@ -145,6 +145,7 @@ def validate(ep_config, sample_lines):
 
 def endpoint_evaluation(ep_config, sample_lines):
     query_results = []
+    overall_start_time = time.time()
     num_rounds = int(args.total_requests/args.concur_requests)
     for i in range(num_rounds):
         print(f'Starting round {i}')
@@ -161,6 +162,8 @@ def endpoint_evaluation(ep_config, sample_lines):
         else:
             print(f'No need to sleep for the next round')
         print(f'Round {i} complete')
+    overall_end_time = time.time()
+    print(f'Overall execution time {overall_end_time-overall_start_time}')
     return query_results
 
 
@@ -265,10 +268,6 @@ if __name__ == '__main__':
     ## Endpoint evaluation
     query_results = endpoint_evaluation(endpoint_config, sample_lines)
     
-<<<<<<< HEAD
-    
-=======
->>>>>>> ca66d64d36b2a9e2fa27c2493f785da139209f9e
     ## Results Analysis
     args.api_base = endpoint_config["api_base"]
     results_analysis(query_results, vars(args))
