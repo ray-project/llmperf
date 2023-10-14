@@ -20,9 +20,12 @@ we know work better with varying input and output length.
 Currently supported endpoints include: 
 
 - Any OpenAI compatible endpoints, including Anyscale Endpoints, 
-Anyscale Private Endpoints, OpenAI, etc
-- Vertex
+Anyscale Private Endpoints, OpenAI, Fireworks, Perplexity etc
+- Together 
+- Vertex AI
 - SageMaker
+
+Please see `requirments.txt` for more details on dependency requirments.
 
 ## Upcoming refactor
 

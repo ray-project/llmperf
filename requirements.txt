@@ -8,3 +8,10 @@ matplotlib
 scikit-learn
 ray[default]
 tokenizers==0.13.3
+### Extra dependency for Together
+#requests
+#sseclient-py
+### Extra dependency for Vertex AI
+#google-cloud-aiplatform
+### Extra dependency for SageMaker
+#boto3
