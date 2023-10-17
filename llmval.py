@@ -85,6 +85,7 @@ def validate(ep_config, sample_lines):
     prompt, rnd_num = prompt_generator(args.num_digits, args.min_lines, args.max_lines, sample_lines)
     tokens_in = len(tokenizer.encode(prompt))+len(tokenizer.encode(sys_prompt)) + 4
     words = ''
+    id = None
     st = et = ttft = 0
     if ep_config["framework"] in ["anyscale","openai","fireworks","perplexity"]:
         messages = [{'role': 'system','content': sys_prompt},
@@ -103,6 +104,7 @@ def validate(ep_config, sample_lines):
                 stream = True
             )
             for tok in response: 
+                id = tok.id
                 if tok.choices[0].delta:
                     delta = tok.choices[0].delta
                     if 'content' in delta:
@@ -207,7 +209,7 @@ def validate(ep_config, sample_lines):
     else:
         valid = 'Mismatch'
         cause = f'Output unparseable. Input = {rnd_num}. Output:\n {words}'
-    return (valid, ttft, et-st, tokens_in, tokens_out, cause)
+    return (valid, ttft, et-st, tokens_in, tokens_out, cause, id)
 
 def endpoint_evaluation(ep_config, sample_lines):
     query_results = []
@@ -234,7 +236,7 @@ def endpoint_evaluation(ep_config, sample_lines):
 
 
 def results_analysis(query_results, results_dict):
-    df = pd.DataFrame(query_results, columns =['valid', 'ttft', 'total_time', 'tokens_in', 'tokens_out', 'cause'])
+    df = pd.DataFrame(query_results, columns =['valid', 'ttft', 'total_time', 'tokens_in', 'tokens_out', 'cause', 'id'])
     ts = int(time.time())
     fn = f'{results_dict["framework"]}-{ts}_raw.json'
     df.to_json(fn)
@@ -246,13 +248,17 @@ def results_analysis(query_results, results_dict):
     cdf = df[df.valid !='Exception'].copy()
     print(f'Clean DF is: {len(cdf)}')
     cdf['total_tokens_per_s'] = (cdf.tokens_out + cdf.tokens_in)/cdf.total_time
-    cdf['out_tokens_per_s'] = cdf.tokens_out/(cdf.total_time-cdf.ttft)
-    cdf['inter_tokens_delay'] = (cdf.total_time-cdf.ttft)/cdf.tokens_out
+    cdf['out_tokens_per_s'] = cdf.tokens_out/cdf.total_time
+    cdf['inter_tokens_delay'] = cdf.total_time/cdf.tokens_out
+    mean_e2e = cdf['total_time'].mean()
     mean_tokens_in = cdf['tokens_in'].mean() 
     mean_tokens_out = cdf['tokens_out'].mean() 
     mean_ttft = cdf['ttft'].mean()
+    max_ttft = cdf['ttft'].max()
     gt_3_ttft = len(cdf[cdf['ttft'] > 3])/len(cdf)
+    print(f'Mean End-to-end: {mean_e2e*1000.0:.0f} ms')
     print(f'Mean TTFT: {mean_ttft*1000:.0f} ms (mean tokens in: {mean_tokens_in:.0f}, out: {mean_tokens_out:.0f})')
+    print(f'Max TTFT: {max_ttft*1000:.0f} ms')
     print(f'TTFT > 3 s: {gt_3_ttft*100:.2f}%')
     print(f'ITL (out): {cdf.inter_tokens_delay.mean()*1000:.2f} ms/token, mean tokens/s output (out): {cdf.out_tokens_per_s.mean():.2f} token/s')
     
