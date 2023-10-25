@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from transformers import LlamaTokenizerFast
 
-FRAMEWORKS = ["anyscale","openai","fireworks","vertexai","sagemaker","perplexity","together"]
+FRAMEWORKS = ["anyscale","openai","fireworks","vertexai","sagemaker","perplexity","together", "vllm"]
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
 
@@ -87,7 +87,7 @@ def validate(ep_config, sample_lines):
     words = ''
     id = None
     st = et = ttft = 0
-    if ep_config["framework"] in ["anyscale","openai","fireworks","perplexity"]:
+    if ep_config["framework"] in ["anyscale","openai","fireworks","perplexity", "vllm"]:
         messages = [{'role': 'system','content': sys_prompt},
                     {'role': 'user','content' : prompt}]
         try:
@@ -333,6 +333,9 @@ if __name__ == '__main__':
         endpoint_config["api_base"]="SageMaker Endpoint"
         endpoint_config["region"]=os.environ['SAGEMAKER_REGION']
         endpoint_config["endpoint_name"]=os.environ['SAGEMAKER_ENDPOINT_NAME']
+    elif args.framework == "vllm":
+        endpoint_config["api_base"]=os.environ['VLLM_API_BASE']
+        endpoint_config["api_key"]=os.environ['VLLM_API_KEY']
         
     endpoint_config["framework"] = args.framework
     endpoint_config["model"] = args.model
