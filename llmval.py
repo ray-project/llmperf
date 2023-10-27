@@ -1,4 +1,5 @@
 import argparse
+from collections import defaultdict
 import ray, openai
 from num2words import num2words
 import time, os, sys, re, json, datetime
@@ -134,7 +135,7 @@ def validate(ep_config, sample_lines):
                         words += delta["content"]
             et = time.time()
         except Exception as e:
-            return ("Exception", -1, -1, -1, -1, str(e))
+            return ("Exception", -1, -1, -1, -1, str(e), "")
     elif ep_config["framework"] == "together":
         try:
             st = time.time()
@@ -163,7 +164,7 @@ def validate(ep_config, sample_lines):
                 words += partial_result["choices"][0]["text"]
             et = time.time()
         except Exception as e:
-            return ("Exception", -1, -1, -1, -1, str(e))
+            return ("Exception", -1, -1, -1, -1, str(e), "")
     elif ep_config["framework"] == "vertexai":
         chat_model = ChatModel.from_pretrained(ep_config["model"])
         chat = chat_model.start_chat(
@@ -185,7 +186,7 @@ def validate(ep_config, sample_lines):
 
             et = time.time()
         except Exception as e:
-            return ("Exception", -1, -1, -1, -1, str(e))
+            return ("Exception", -1, -1, -1, -1, str(e), "")
 
     elif ep_config["framework"] == "sagemaker":
         sm_runtime = boto3.client("sagemaker-runtime", region_name=ep_config["region"])
@@ -219,7 +220,7 @@ def validate(ep_config, sample_lines):
             words = resp[0]["generation"]["content"]
             et = time.time()
         except Exception as e:
-            return ("Exception", -1, -1, -1, -1, str(e))
+            return ("Exception", -1, -1, -1, -1, str(e), "")
 
     # Get rid of commas.
     tokens_out = len(tokenizer.encode(words))
@@ -285,31 +286,7 @@ def results_analysis(query_results, results_dict):
     print("Validity results:")
     print(df["valid"].value_counts())
 
-    cdf = df[df.valid != "Exception"].copy()
-    print(f"Clean DF is: {len(cdf)}")
-    cdf["total_tokens_per_s"] = (cdf.tokens_out + cdf.tokens_in) / cdf.total_time
-    cdf["out_tokens_per_s"] = cdf.tokens_out / cdf.total_time
-    cdf["inter_tokens_delay"] = cdf.total_time / cdf.tokens_out
-    mean_e2e = cdf["total_time"].mean()
-    mean_tokens_in = cdf["tokens_in"].mean()
-    mean_tokens_out = cdf["tokens_out"].mean()
-    mean_ttft = cdf["ttft"].mean()
-    max_ttft = cdf["ttft"].max()
-    gt_3_ttft = len(cdf[cdf["ttft"] > 3]) / len(cdf)
-    print(f"Mean End-to-end: {mean_e2e*1000.0:.0f} ms")
-    print(
-        f"Mean TTFT: {mean_ttft*1000:.0f} ms (mean tokens in: {mean_tokens_in:.0f}, out: {mean_tokens_out:.0f})"
-    )
-    print(f"Max TTFT: {max_ttft*1000:.0f} ms")
-    print(f"TTFT > 3 s: {gt_3_ttft*100:.2f}%")
-    print(
-        f"ITL (out): {cdf.inter_tokens_delay.mean()*1000:.2f} ms/token, mean tokens/s output (out): {cdf.out_tokens_per_s.mean():.2f} token/s"
-    )
-
     value_counts = df["valid"].value_counts()
-    # Put things in a dictionary and save the results
-    results_dict["end_timestamp"] = datetime.datetime.fromtimestamp(ts).isoformat()
-    results_dict["total_time"] = float(cdf.total_time.mean())
     results_dict["num_valid"] = int(value_counts.get("OK", 0))
     results_dict["num_exceptions"] = int(value_counts.get("Exception", 0))
     results_dict["num_mismatch"] = int(value_counts.get("Mismatch", 0))
@@ -322,12 +299,49 @@ def results_analysis(query_results, results_dict):
     results_dict["exception_rate"] = float(
         results_dict["num_exceptions"] / results_dict["total_requests"]
     )
-    results_dict["mean_ttft"] = int(f"{mean_ttft*1000:.0f}")
-    results_dict["mean_tokens_in"] = mean_tokens_in
-    results_dict["mean_tokens_out"] = mean_tokens_out
-    results_dict["total_tokens_per_s"] = float(cdf.total_tokens_per_s.mean())
-    results_dict["out_tokens_per_s"] = float(cdf.out_tokens_per_s.mean())
-    results_dict["inter_token_delay"] = float(cdf.inter_tokens_delay.mean() * 1000)
+    cdf = df[df.valid != "Exception"].copy()
+    print(f"Clean DF is: {len(cdf)}")
+    if len(cdf) > 0:
+        cdf["total_tokens_per_s"] = (cdf.tokens_out + cdf.tokens_in) / cdf.total_time
+        cdf["out_tokens_per_s"] = cdf.tokens_out / cdf.total_time
+        cdf["inter_tokens_delay"] = cdf.total_time / cdf.tokens_out
+        mean_e2e = cdf["total_time"].mean()
+        mean_tokens_in = cdf["tokens_in"].mean()
+        mean_tokens_out = cdf["tokens_out"].mean()
+        mean_ttft = cdf["ttft"].mean()
+        max_ttft = cdf["ttft"].max()
+        gt_3_ttft = len(cdf[cdf["ttft"] > 3]) / len(cdf)
+        print(f"Mean End-to-end: {mean_e2e*1000.0:.0f} ms")
+        print(
+            f"Mean TTFT: {mean_ttft*1000:.0f} ms (mean tokens in: {mean_tokens_in:.0f}, out: {mean_tokens_out:.0f})"
+        )
+        print(f"Max TTFT: {max_ttft*1000:.0f} ms")
+        print(f"TTFT > 3 s: {gt_3_ttft*100:.2f}%")
+        print(
+            f"ITL (out): {cdf.inter_tokens_delay.mean()*1000:.2f} ms/token, mean tokens/s output (out): {cdf.out_tokens_per_s.mean():.2f} token/s"
+        )
+        # Put things in a dictionary and save the results
+        results_dict["end_timestamp"] = datetime.datetime.fromtimestamp(ts).isoformat()
+        results_dict["total_time"] = float(cdf.total_time.mean())
+        results_dict["mean_ttft"] = int(f"{mean_ttft*1000:.0f}")
+        results_dict["mean_tokens_in"] = mean_tokens_in
+        results_dict["mean_tokens_out"] = mean_tokens_out
+        results_dict["total_tokens_per_s"] = float(cdf.total_tokens_per_s.mean())
+        results_dict["out_tokens_per_s"] = float(cdf.out_tokens_per_s.mean())
+        results_dict["inter_token_delay"] = float(cdf.inter_tokens_delay.mean() * 1000)
+
+    def error_analysis(df):
+        # Group exceptions based on exceptions cause.
+        exceptions = df[df.valid == "Exception"]
+        exceptions_by_cause = defaultdict(int)
+        # Ideally we should group by some error code
+        for cause in exceptions["cause"]:
+            exceptions_by_cause[cause] += 1
+        print("Exceptions by cause:")
+        for cause, count in exceptions_by_cause.items():
+            print(f" - {count}: {cause}")
+
+    error_analysis(df)
     results_dict["raw_output"] = fn
     benchmark_result = f"{results_dict['framework']}-{ts}.json"
 
