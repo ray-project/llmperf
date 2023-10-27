@@ -11,5 +11,5 @@ FIREWORKS_API_BASE="https://api.fireworks.ai/inference/v1"
 FIREWORKS_API_KEY="xxxxx"
 
 #vLLM Endpoint
-VLLM_API_BASE = "https://localhost/v1"
-VLLM_API_KEY = "xxxxx'
+VLLM_API_BASE="https://localhost/v1"
+VLLM_API_KEY="xxxxx'
