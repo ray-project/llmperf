@@ -1,14 +1,14 @@
-# llmval
+# llmperf
 
-LLMVal is a tool for validating and benchmarking LLMs. 
+LLMPerf is a tool for benchmarking and validating the performance of LLMs. 
+
+Benchmarking: LLMPerf measures time to first token (TTFT), 
+inter-token latency (ITL) and requests that take longer than 3 seconds 
+to start returning data. 
 
 Validation: we send a simple query to the LLM and ensure the returned data 
 is valid. In particular it checks for inter-request cross-over 
 (request A gets the responses for request B). 
-
-Benchmarking: LLMVal measures time to first token (TTFT), 
-inter-token latency (ITL) and requests that take longer than 3 seconds 
-to start returning data. 
 
 Variation in input and output token lengths is a design parameter
 since this is intended to be representative. This is because
@@ -58,20 +58,20 @@ Default values are the ones that we use for testing Anyscale Endpoints.
 The distribution of inputs and outputs roughly mirrors the input and output 
 patterns we see there. 
 
-We recommend setting the seed (or using the provided seed) to reduce variable but 
+We recommend setting the seed (or using the provided seed) to reduce variance but 
 still have randomization.
 
-Do a python llmval.py --help to see all options. 
+Do a python llmperf.py --help to see all options. 
 
 ## Usage
 1. Provide API base and key in .env file. Check out env_sample.txt
 2. Test out Anyscale Endpoint with following command by sending 20 requests   
-`python llmval.py -r 20 -m "meta-llama/Llama-2-70b-chat-hf"`
+`python llmperf.py -r 20 -m "meta-llama/Llama-2-70b-chat-hf"`
 3. Control input token numbers by setting min/max lines, and control output token number by setting req-lines and max_tokens  
-`python llmval.py -r 20 -f openai -m "gpt-3.5-turbo" --min-lines 8 --max-lines 10`  
-`python llmval.py -r 20 -f openai -m "gpt-3.5-turbo" --req-lines 3 --max-tokens 128`
+`python llmperf.py -r 20 -f openai -m "gpt-3.5-turbo" --min-lines 8 --max-lines 10`  
+`python llmperf.py -r 20 -f openai -m "gpt-3.5-turbo" --req-lines 3 --max-tokens 128`
 4. Control sleep between rounds to avoid hitting rate limit  
-`python llmval.py -r 20 -f fireworks -m "accounts/fireworks/models/llama-v2-70b-chat" --sleep 10`
+`python llmperf.py -r 20 -f fireworks -m "accounts/fireworks/models/llama-v2-70b-chat" --sleep 10`
 5. Output will be saved at **framework-timestamp.json** and **framework-timestamp_raw.json**  
 6. Use Jupyter with analyze-raw.ipynb to visualize and/or interact with the raw data. 
 
