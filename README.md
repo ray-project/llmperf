@@ -25,7 +25,7 @@ Anyscale Private Endpoints, OpenAI, Fireworks, Perplexity etc
 - Vertex AI
 - SageMaker
 
-Please see `requirments.txt` for more details on dependency requirments.
+Please see `requirements.txt` for more details on dependency requirements.
 
 ## Upcoming refactor
 
