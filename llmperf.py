@@ -1,6 +1,6 @@
 import argparse
 from collections import defaultdict
-import ray, openai
+import ray, openai, litellm
 from num2words import num2words
 import time, os, sys, re, json, datetime
 import random
@@ -114,7 +114,7 @@ def validate(ep_config, sample_lines):
         ]
         try:
             st = time.time()
-            response = openai.ChatCompletion.create(
+            response = litellm.completion(
                 model=ep_config["model"],
                 messages=messages,
                 api_key=ep_config["api_key"],

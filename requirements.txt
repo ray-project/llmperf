@@ -1,4 +1,5 @@
 openai
+litellm
 num2words
 python_dotenv
 pandas
