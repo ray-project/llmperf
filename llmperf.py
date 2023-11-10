@@ -1,4 +1,5 @@
 import argparse
+import io
 from collections import defaultdict
 import ray, openai
 from num2words import num2words
@@ -17,6 +18,7 @@ FRAMEWORKS = [
     "perplexity",
     "together",
     "vllm",
+    "tgi",
 ]
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -165,6 +167,45 @@ def validate(ep_config, sample_lines):
             et = time.time()
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
+    elif ep_config["framework"] == "tgi":
+        try:
+            st = time.time()
+            url = ep_config["api_base"]
+            payload = {
+                "inputs": f"<s>[INST]{sys_prompt} + {prompt}[/INST]",
+                "parameters": {
+                    "max_new_tokens": args.max_tokens,
+                    "temperature": 0.7,
+                    "top_p": 0.95,
+                    "top_k": 40,
+                },
+            }
+            headers = {
+                "accept": "application/json",
+                "content-type": "application/json",
+            }
+            response = requests.post(
+                url + "/generate_stream",
+                data=json.dumps(payload),
+                headers=headers,
+                stream=True,
+            )
+
+            for line in response.iter_lines(decode_unicode=True):
+                if line:
+                    json_data = line[5:]  # Remove the 'data:' part
+                    if ttft == 0:
+                        ttft = time.time() - st
+                    try:
+                        entry = json.loads(json_data)
+                        if "token" in entry and "text" in entry["token"]:
+                            words += entry["token"]["text"]
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding JSON: {e}")
+
+            et = time.time()
+        except Exception as e:
+            return ("Exception", -1, -1, -1, -1, str(e), "")
     elif ep_config["framework"] == "vertexai":
         chat_model = ChatModel.from_pretrained(ep_config["model"])
         chat = chat_model.start_chat(
@@ -187,7 +228,6 @@ def validate(ep_config, sample_lines):
             et = time.time()
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
-
     elif ep_config["framework"] == "sagemaker":
         sm_runtime = boto3.client("sagemaker-runtime", region_name=ep_config["region"])
         message = {
@@ -239,9 +279,12 @@ def validate(ep_config, sample_lines):
 
 
 def endpoint_evaluation(ep_config, sample_lines):
+    if os.getenv("DEBUG", 'False').lower() == "true":
+        ray.init(local_mode=True)
     query_results = []
     overall_start_time = time.time()
-    num_rounds = int(args.total_requests / args.concur_requests)
+    rounds_candidate = int(args.total_requests / args.concur_requests)
+    num_rounds = rounds_candidate if rounds_candidate > 0 else 1
     for i in range(num_rounds):
         print(f"Starting round {i}")
         st = time.time()
@@ -261,7 +304,7 @@ def endpoint_evaluation(ep_config, sample_lines):
             print(f"No need to sleep for the next round")
         print(f"Round {i} complete")
     overall_end_time = time.time()
-    print(f"Overall execution time {overall_end_time-overall_start_time}")
+    print(f"Overall execution time {overall_end_time - overall_start_time}")
     return query_results
 
 
@@ -311,19 +354,19 @@ def results_analysis(query_results, results_dict):
         mean_ttft = cdf["ttft"].mean()
         max_ttft = cdf["ttft"].max()
         gt_3_ttft = len(cdf[cdf["ttft"] > 3]) / len(cdf)
-        print(f"Mean End-to-end: {mean_e2e*1000.0:.0f} ms")
+        print(f"Mean End-to-end: {mean_e2e * 1000.0:.0f} ms")
         print(
-            f"Mean TTFT: {mean_ttft*1000:.0f} ms (mean tokens in: {mean_tokens_in:.0f}, out: {mean_tokens_out:.0f})"
+            f"Mean TTFT: {mean_ttft * 1000:.0f} ms (mean tokens in: {mean_tokens_in:.0f}, out: {mean_tokens_out:.0f})"
         )
-        print(f"Max TTFT: {max_ttft*1000:.0f} ms")
-        print(f"TTFT > 3 s: {gt_3_ttft*100:.2f}%")
+        print(f"Max TTFT: {max_ttft * 1000:.0f} ms")
+        print(f"TTFT > 3 s: {gt_3_ttft * 100:.2f}%")
         print(
-            f"ITL (out): {cdf.inter_tokens_delay.mean()*1000:.2f} ms/token, mean tokens/s output (out): {cdf.out_tokens_per_s.mean():.2f} token/s"
+            f"ITL (out): {cdf.inter_tokens_delay.mean() * 1000:.2f} ms/token, mean tokens/s output (out): {cdf.out_tokens_per_s.mean():.2f} token/s"
         )
         # Put things in a dictionary and save the results
         results_dict["end_timestamp"] = datetime.datetime.fromtimestamp(ts).isoformat()
         results_dict["total_time"] = float(cdf.total_time.mean())
-        results_dict["mean_ttft"] = int(f"{mean_ttft*1000:.0f}")
+        results_dict["mean_ttft"] = int(f"{mean_ttft * 1000:.0f}")
         results_dict["mean_tokens_in"] = mean_tokens_in
         results_dict["mean_tokens_out"] = mean_tokens_out
         results_dict["total_tokens_per_s"] = float(cdf.total_tokens_per_s.mean())
@@ -388,7 +431,7 @@ if __name__ == "__main__":
         "-c",
         "--concur-requests",
         type=int,
-        default=10,
+        default=1,
         help="number of concurrent requests",
     )
     parser.add_argument(
@@ -431,6 +474,11 @@ if __name__ == "__main__":
 
         endpoint_config["api_base"] = os.environ["TOGETHER_API_BASE"]
         endpoint_config["api_key"] = os.environ["TOGETHER_API_KEY"]
+    elif args.framework == "tgi":
+        import requests
+
+        endpoint_config["api_base"] = os.environ["TGI_API_BASE"]
+        endpoint_config["api_key"] = os.environ["TGI_API_KEY"]
     elif args.framework == "vertexai":
         import vertexai
         from vertexai.preview.language_models import ChatModel

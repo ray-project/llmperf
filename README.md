@@ -24,6 +24,7 @@ Anyscale Private Endpoints, OpenAI, Fireworks, Perplexity etc
 - Together 
 - Vertex AI
 - SageMaker
+- TGI (Text Generation Inference)
 
 Please see `requirements.txt` for more details on dependency requirements.
 

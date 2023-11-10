@@ -13,3 +13,11 @@ FIREWORKS_API_KEY="xxxxx"
 #vLLM Endpoint
 VLLM_API_BASE="https://localhost/v1"
 VLLM_API_KEY="xxxxx'
+
+#TGI Endpoint
+#Local TGI endpoint
+TGI_API_BASE="http://localhost:11434"
+TGI_API_KEY="secret_xxxxx"
+
+# Debug mode: True or False. To step into the validate method code, set to True
+DEBUG = False
