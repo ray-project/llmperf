@@ -1,5 +1,4 @@
 import argparse
-from enum import Enum
 from collections import defaultdict
 import ray, openai
 from num2words import num2words
