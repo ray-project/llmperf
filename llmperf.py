@@ -406,7 +406,8 @@ if __name__ == "__main__":
     endpoint_config = EndpointConfig(framework=framework)
     if args.random_seed >= 0:
         random.seed(args.random_seed)
-    elif framework == Framework.ANYSCALE:
+    
+    if framework == Framework.ANYSCALE:
         endpoint_config.api_base = os.environ["ANYSCALE_API_BASE"]
         endpoint_config.api_key = os.environ["ANYSCALE_API_KEY"]
     elif framework == Framework.OPENAI:
@@ -441,7 +442,6 @@ if __name__ == "__main__":
         endpoint_config.api_key = os.environ["VLLM_API_KEY"]
 
     endpoint_config.model = args.model
-
     f = open(args.random_lines_file_name, "r")
     sample_lines = f.readlines()
     f.close()
