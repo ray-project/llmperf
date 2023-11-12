@@ -7,17 +7,9 @@ import random
 from dotenv import load_dotenv
 import pandas as pd
 from transformers import LlamaTokenizerFast
+from typing import List
 
-FRAMEWORKS = [
-    "anyscale",
-    "openai",
-    "fireworks",
-    "vertexai",
-    "sagemaker",
-    "perplexity",
-    "together",
-    "vllm",
-]
+from configs import Framework, EndpointConfig
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
@@ -92,7 +84,7 @@ def prompt_generator(num_digits=3, min_lines=15, max_lines=1000, file_lines=[]) 
 
 
 @ray.remote(num_cpus=0.001)
-def validate(ep_config, sample_lines):
+def validate(ep_config: EndpointConfig, sample_lines: List[str]):
     # The 4 is for the end and start tokens of the messages
     prompt, rnd_num = prompt_generator(
         args.num_digits, args.min_lines, args.max_lines, sample_lines
@@ -101,12 +93,12 @@ def validate(ep_config, sample_lines):
     words = ""
     id = None
     st = et = ttft = 0
-    if ep_config["framework"] in [
-        "anyscale",
-        "openai",
-        "fireworks",
-        "perplexity",
-        "vllm",
+    if ep_config.framework in [
+        Framework.ANYSCALE,
+        Framework.OPENAI,
+        Framework.FIREWORKS,
+        Framework.PERPLEXITY,
+        Framework.VLLM,
     ]:
         messages = [
             {"role": "system", "content": sys_prompt},
@@ -115,10 +107,10 @@ def validate(ep_config, sample_lines):
         try:
             st = time.time()
             response = openai.ChatCompletion.create(
-                model=ep_config["model"],
+                model=ep_config.model,
                 messages=messages,
-                api_key=ep_config["api_key"],
-                api_base=ep_config["api_base"],
+                api_key=ep_config.api_key,
+                api_base=ep_config.api_base,
                 max_tokens=args.max_tokens,
                 # Please keep temp at 0. Otherwise increases the number of mismatches.
                 temperature=0,
@@ -136,12 +128,12 @@ def validate(ep_config, sample_lines):
             et = time.time()
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
-    elif ep_config["framework"] == "together":
+    elif ep_config.framework == Framework.TOGETHER:
         try:
             st = time.time()
-            url = ep_config["api_base"]
+            url = ep_config.api_base
             payload = {
-                "model": ep_config["model"],
+                "model": ep_config.model,
                 "prompt": sys_prompt + prompt,
                 "max_tokens": args.max_tokens,
                 "temperature": 0,
@@ -150,7 +142,7 @@ def validate(ep_config, sample_lines):
             headers = {
                 "accept": "application/json",
                 "content-type": "application/json",
-                "Authorization": f"Bearer {ep_config['api_key']}",
+                "Authorization": f"Bearer {ep_config.api_key}",
             }
             response = requests.post(url, json=payload, headers=headers)
             response.raise_for_status()
@@ -165,8 +157,8 @@ def validate(ep_config, sample_lines):
             et = time.time()
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
-    elif ep_config["framework"] == "vertexai":
-        chat_model = ChatModel.from_pretrained(ep_config["model"])
+    elif ep_config.framework == Framework.VERTEXAI:
+        chat_model = ChatModel.from_pretrained(ep_config.model)
         chat = chat_model.start_chat(
             context=sys_prompt,
         )
@@ -188,8 +180,8 @@ def validate(ep_config, sample_lines):
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
 
-    elif ep_config["framework"] == "sagemaker":
-        sm_runtime = boto3.client("sagemaker-runtime", region_name=ep_config["region"])
+    elif ep_config.framework == Framework.SAGEMAKER:
+        sm_runtime = boto3.client("sagemaker-runtime", region_name=ep_config.region)
         message = {
             "inputs": [
                 [
@@ -206,7 +198,7 @@ def validate(ep_config, sample_lines):
         try:
             st = time.time()
             response = sm_runtime.invoke_endpoint_with_response_stream(
-                EndpointName=ep_config["endpoint_name"],
+                EndpointName=ep_config.endpoint_name,
                 ContentType="application/json",
                 Body=json.dumps(message),
                 CustomAttributes="accept_eula=true",
@@ -238,7 +230,7 @@ def validate(ep_config, sample_lines):
     return (valid, ttft, et - st, tokens_in, tokens_out, cause, id)
 
 
-def endpoint_evaluation(ep_config, sample_lines):
+def endpoint_evaluation(ep_config: EndpointConfig, sample_lines: List[str]):
     query_results = []
     overall_start_time = time.time()
     num_rounds = int(args.total_requests / args.concur_requests)
@@ -340,6 +332,8 @@ def results_analysis(query_results, results_dict):
         print("Exceptions by cause:")
         for cause, count in exceptions_by_cause.items():
             print(f" - {count}: {cause}")
+        if not len(exceptions_by_cause): # no exceptions
+            print("None")
 
     error_analysis(df)
     results_dict["raw_output"] = fn
@@ -352,7 +346,7 @@ def results_analysis(query_results, results_dict):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-f", "--framework", type=str, default="anyscale", help="Test frame name"
+        "-f", "--framework", type=str, default="anyscale", choices=Framework.list(), help="Test frame name"
     )
     parser.add_argument(
         "-m",
@@ -408,48 +402,45 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     load_dotenv()
-    endpoint_config = {}
+    framework = Framework(args.framework)
+    endpoint_config = EndpointConfig(framework=framework)
     if args.random_seed >= 0:
         random.seed(args.random_seed)
-    if args.framework not in FRAMEWORKS:
-        print(f"Choose a framework in {FRAMEWORKS}")
-        sys.exit(0)
-    elif args.framework == "anyscale":
-        endpoint_config["api_base"] = os.environ["ANYSCALE_API_BASE"]
-        endpoint_config["api_key"] = os.environ["ANYSCALE_API_KEY"]
-    elif args.framework == "openai":
-        endpoint_config["api_base"] = os.environ["OPENAI_API_BASE"]
-        endpoint_config["api_key"] = os.environ["OPENAI_API_KEY"]
-    elif args.framework == "fireworks":
-        endpoint_config["api_base"] = os.environ["FIREWORKS_API_BASE"]
-        endpoint_config["api_key"] = os.environ["FIREWORKS_API_KEY"]
-    elif args.framework == "perplexity":
-        endpoint_config["api_base"] = os.environ["PERPLEXITY_API_BASE"]
-        endpoint_config["api_key"] = os.environ["PERPLEXITY_API_KEY"]
-    elif args.framework == "together":
+    elif framework == Framework.ANYSCALE:
+        endpoint_config.api_base = os.environ["ANYSCALE_API_BASE"]
+        endpoint_config.api_key = os.environ["ANYSCALE_API_KEY"]
+    elif framework == Framework.OPENAI:
+        endpoint_config.api_base = os.environ["OPENAI_API_BASE"]
+        endpoint_config.api_key = os.environ["OPENAI_API_KEY"]
+    elif framework == Framework.FIREWORKS:
+        endpoint_config.api_base = os.environ["FIREWORKS_API_BASE"]
+        endpoint_config.api_key = os.environ["FIREWORKS_API_KEY"]
+    elif framework == Framework.PERPLEXITY:
+        endpoint_config.api_base = os.environ["PERPLEXITY_API_BASE"]
+        endpoint_config.api_key = os.environ["PERPLEXITY_API_KEY"]
+    elif framework == Framework.TOGETHER:
         import requests, sseclient
 
-        endpoint_config["api_base"] = os.environ["TOGETHER_API_BASE"]
-        endpoint_config["api_key"] = os.environ["TOGETHER_API_KEY"]
-    elif args.framework == "vertexai":
+        endpoint_config.api_base = os.environ["TOGETHER_API_BASE"]
+        endpoint_config.api_key = os.environ["TOGETHER_API_KEY"]
+    elif framework == Framework.VERTEXAI:
         import vertexai
         from vertexai.preview.language_models import ChatModel
 
-        endpoint_config["api_base"] = "VertexAI Endpoint"
-        endpoint_config["project_id"] = os.environ["VERTEXAI_PROJECT_ID"]
-        vertexai.init(project=endpoint_config["project_id"])
-    elif args.framework == "sagemaker":
+        endpoint_config.api_base = "VertexAI Endpoint"
+        endpoint_config.project_id = os.environ["VERTEXAI_PROJECT_ID"]
+        vertexai.init(project=endpoint_config.project_id)
+    elif framework == Framework.SAGEMAKER:
         import boto3
 
-        endpoint_config["api_base"] = "SageMaker Endpoint"
-        endpoint_config["region"] = os.environ["SAGEMAKER_REGION"]
-        endpoint_config["endpoint_name"] = os.environ["SAGEMAKER_ENDPOINT_NAME"]
-    elif args.framework == "vllm":
-        endpoint_config["api_base"] = os.environ["VLLM_API_BASE"]
-        endpoint_config["api_key"] = os.environ["VLLM_API_KEY"]
+        endpoint_config.api_base = "SageMaker Endpoint"
+        endpoint_config.region = os.environ["SAGEMAKER_REGION"]
+        endpoint_config.endpoint_name = os.environ["SAGEMAKER_ENDPOINT_NAME"]
+    elif framework == Framework.VLLM:
+        endpoint_config.api_base = os.environ["VLLM_API_BASE"]
+        endpoint_config.api_key = os.environ["VLLM_API_KEY"]
 
-    endpoint_config["framework"] = args.framework
-    endpoint_config["model"] = args.model
+    endpoint_config.model = args.model
 
     f = open(args.random_lines_file_name, "r")
     sample_lines = f.readlines()
@@ -459,5 +450,5 @@ if __name__ == "__main__":
     query_results = endpoint_evaluation(endpoint_config, sample_lines)
 
     ## Results Analysis
-    args.api_base = endpoint_config["api_base"]
+    args.api_base = endpoint_config.api_base
     results_analysis(query_results, vars(args))
