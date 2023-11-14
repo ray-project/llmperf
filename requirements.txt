@@ -8,6 +8,7 @@ matplotlib
 scikit-learn
 ray[default]
 tokenizers==0.13.3
+huggingface-hub
 ### Extra dependency for Together
 #requests
 #sseclient-py
