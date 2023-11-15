@@ -13,3 +13,7 @@ FIREWORKS_API_KEY="xxxxx"
 #vLLM Endpoint
 VLLM_API_BASE="https://localhost/v1"
 VLLM_API_KEY="xxxxx'
+
+# Huggingface  Text Generation Inference
+TGI_API_BASE="http://localhost:8001"
+TGI_API_KEY="enter key"

@@ -21,6 +21,7 @@ Currently supported endpoints include:
 
 - Any OpenAI compatible endpoints, including Anyscale Endpoints, 
 Anyscale Private Endpoints, OpenAI, Fireworks, Perplexity etc
+- Any [Huggingface Text Generation Inference](https://github.com/huggingface/text-generation-inference) endpoints
 - Together 
 - Vertex AI
 - SageMaker

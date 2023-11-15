@@ -7,6 +7,7 @@ import random
 from dotenv import load_dotenv
 import pandas as pd
 from transformers import LlamaTokenizerFast
+from huggingface_hub import InferenceClient
 
 FRAMEWORKS = [
     "anyscale",
@@ -17,6 +18,7 @@ FRAMEWORKS = [
     "perplexity",
     "together",
     "vllm",
+    "tgi"
 ]
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -218,6 +220,22 @@ def validate(ep_config, sample_lines):
             resp = json.loads(json_byte)
             ttft = ttft - st
             words = resp[0]["generation"]["content"]
+            et = time.time()
+        except Exception as e:
+            return ("Exception", -1, -1, -1, -1, str(e), "")
+    elif ep_config["framework"] == "tgi":
+
+        model = ep_config["model"] if ep_config["api_base"] is None else ep_config["api_base"]
+        api_key = ep_config["api_key"]
+        client = InferenceClient(model=model, token=api_key)
+        query = f"[INST] {sys_prompt} {prompt} [/INST]"
+        try:
+            st = time.time()
+            response = client.text_generation(query, max_new_tokens=args.max_tokens, temperature=.1, stream=True)
+            for tok in response:
+                words += tok
+                if ttft == 0:
+                    ttft = time.time() - st
             et = time.time()
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
@@ -447,6 +465,9 @@ if __name__ == "__main__":
     elif args.framework == "vllm":
         endpoint_config["api_base"] = os.environ["VLLM_API_BASE"]
         endpoint_config["api_key"] = os.environ["VLLM_API_KEY"]
+    elif args.framework == "tgi":
+        endpoint_config["api_base"]=os.environ["TGI_API_BASE"]
+        endpoint_config["api_key"]=os.environ["TGI_API_KEY"]
 
     endpoint_config["framework"] = args.framework
     endpoint_config["model"] = args.model
