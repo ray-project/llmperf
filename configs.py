@@ -10,6 +10,7 @@ class Framework(Enum):
     PERPLEXITY = "perplexity"
     TOGETHER = "together"
     VLLM = "vllm"
+    TGI = "tgi"
 
     # helper method to get the list of values/ supported frameworks
     @classmethod

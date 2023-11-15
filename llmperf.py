@@ -7,6 +7,7 @@ import random
 from dotenv import load_dotenv
 import pandas as pd
 from transformers import LlamaTokenizerFast
+from huggingface_hub import InferenceClient
 from typing import List
 
 from configs import Framework, EndpointConfig
@@ -210,6 +211,22 @@ def validate(ep_config: EndpointConfig, sample_lines: List[str]):
             resp = json.loads(json_byte)
             ttft = ttft - st
             words = resp[0]["generation"]["content"]
+            et = time.time()
+        except Exception as e:
+            return ("Exception", -1, -1, -1, -1, str(e), "")
+    elif ep_config.framework == Framework.TGI:
+
+        model = ep_config.model if ep_config.api_base is None else ep_config.api_base
+        api_key = ep_config.api_key
+        client = InferenceClient(model=model, token=api_key)
+        query = f"[INST] {sys_prompt} {prompt} [/INST]"
+        try:
+            st = time.time()
+            response = client.text_generation(query, max_new_tokens=args.max_tokens, temperature=.1, stream=True)
+            for tok in response:
+                words += tok
+                if ttft == 0:
+                    ttft = time.time() - st
             et = time.time()
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
@@ -440,6 +457,9 @@ if __name__ == "__main__":
     elif framework == Framework.VLLM:
         endpoint_config.api_base = os.environ["VLLM_API_BASE"]
         endpoint_config.api_key = os.environ["VLLM_API_KEY"]
+    elif framework == Framework.TGI:
+        endpoint_config.api_base = os.environ["TGI_API_BASE"]
+        endpoint_config.api_key = os.environ["TGI_API_KEY"]
 
     endpoint_config.model = args.model
     f = open(args.random_lines_file_name, "r")
