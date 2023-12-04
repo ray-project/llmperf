@@ -1,10 +1,11 @@
-# llmperf
+# llmperf 
 
 LLMPerf is a tool for benchmarking and validating the performance of LLMs. 
 
 Benchmarking: LLMPerf measures time to first token (TTFT), 
 inter-token latency (ITL) and requests that take longer than 3 seconds 
 to start returning data. 
+
 
 Validation: we send a simple query to the LLM and ensure the returned data 
 is valid. In particular it checks for inter-request cross-over 
