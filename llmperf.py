@@ -1,13 +1,21 @@
 import argparse
-from collections import defaultdict
-import ray, openai
-from num2words import num2words
-import time, os, sys, re, json, datetime
+import datetime
+import io
+import json
+import os
 import random
-from dotenv import load_dotenv
+import re
+import sys
+import time
+from collections import defaultdict
+
+import openai
 import pandas as pd
-from transformers import LlamaTokenizerFast
+import ray
+from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
+from num2words import num2words
+from transformers import LlamaTokenizerFast
 
 FRAMEWORKS = [
     "anyscale",
@@ -18,7 +26,8 @@ FRAMEWORKS = [
     "perplexity",
     "together",
     "vllm",
-    "tgi"
+    "tgi",
+    "mlc-llm",
 ]
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -94,8 +103,9 @@ def prompt_generator(num_digits=3, min_lines=15, max_lines=1000, file_lines=[]) 
 
 
 @ray.remote(num_cpus=0.001)
-def validate(ep_config, sample_lines):
+def validate(ep_config, sample_lines, random_seed):
     # The 4 is for the end and start tokens of the messages
+    random.seed(random_seed)
     prompt, rnd_num = prompt_generator(
         args.num_digits, args.min_lines, args.max_lines, sample_lines
     )
@@ -109,6 +119,7 @@ def validate(ep_config, sample_lines):
         "fireworks",
         "perplexity",
         "vllm",
+        "mlc-llm",
     ]:
         messages = [
             {"role": "system", "content": sys_prompt},
@@ -116,11 +127,10 @@ def validate(ep_config, sample_lines):
         ]
         try:
             st = time.time()
-            response = openai.ChatCompletion.create(
+            client = openai.OpenAI(base_url=ep_config["api_base"], api_key=ep_config["api_key"])
+            response = client.chat.completions.create(
                 model=ep_config["model"],
                 messages=messages,
-                api_key=ep_config["api_key"],
-                api_base=ep_config["api_base"],
                 max_tokens=args.max_tokens,
                 # Please keep temp at 0. Otherwise increases the number of mismatches.
                 temperature=0,
@@ -131,10 +141,10 @@ def validate(ep_config, sample_lines):
                 id = tok.id
                 if tok.choices[0].delta:
                     delta = tok.choices[0].delta
-                    if "content" in delta:
+                    if hasattr(delta, "content") and delta.content is not None:
                         if ttft == 0:
                             ttft = time.time() - st
-                        words += delta["content"]
+                        words += delta.content
             et = time.time()
         except Exception as e:
             return ("Exception", -1, -1, -1, -1, str(e), "")
@@ -264,8 +274,8 @@ def endpoint_evaluation(ep_config, sample_lines):
         print(f"Starting round {i}")
         st = time.time()
         futures = [
-            validate.remote(ep_config, sample_lines)
-            for _ in range(args.concur_requests)
+            validate.remote(ep_config, sample_lines, args.random_seed + k)
+            for k in range(args.concur_requests)
         ]
         results = ray.get(futures)
         query_results.extend(results)
@@ -438,6 +448,9 @@ if __name__ == "__main__":
     elif args.framework == "openai":
         endpoint_config["api_base"] = os.environ["OPENAI_API_BASE"]
         endpoint_config["api_key"] = os.environ["OPENAI_API_KEY"]
+    elif args.framework == "mlc-llm":
+        endpoint_config["api_base"] = os.environ["MLC_API_BASE"]
+        endpoint_config["api_key"] = os.environ["MLC_API_KEY"]
     elif args.framework == "fireworks":
         endpoint_config["api_base"] = os.environ["FIREWORKS_API_BASE"]
         endpoint_config["api_key"] = os.environ["FIREWORKS_API_KEY"]
@@ -445,7 +458,8 @@ if __name__ == "__main__":
         endpoint_config["api_base"] = os.environ["PERPLEXITY_API_BASE"]
         endpoint_config["api_key"] = os.environ["PERPLEXITY_API_KEY"]
     elif args.framework == "together":
-        import requests, sseclient
+        import requests
+        import sseclient
 
         endpoint_config["api_base"] = os.environ["TOGETHER_API_BASE"]
         endpoint_config["api_key"] = os.environ["TOGETHER_API_KEY"]
