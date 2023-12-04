@@ -477,11 +477,11 @@ if __name__ == "__main__":
         endpoint_config.api_base = os.environ["VLLM_API_BASE"]
         endpoint_config.api_key = os.environ["VLLM_API_KEY"]
     elif args.framework == "tgi":
-        endpoint_config.api_base.=os.environ["TGI_API_BASE"]
-        endpoint_config.api_key.=os.environ["TGI_API_KEY"]
+        endpoint_config.api_base=os.environ["TGI_API_BASE"]
+        endpoint_config.api_key=os.environ["TGI_API_KEY"]
 
-    endpoint_config.framework. = args.framework
-    endpoint_config.model. = args.model
+    endpoint_config.framework = args.framework
+    endpoint_config.model = args.model
     f = open(args.random_lines_file_name, "r")
     sample_lines = f.readlines()
     f.close()
