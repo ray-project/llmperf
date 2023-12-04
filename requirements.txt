@@ -1,4 +1,4 @@
-openai
+openai==0.28
 num2words
 python_dotenv
 pandas

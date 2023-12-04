@@ -2,7 +2,7 @@ import argparse
 from collections import defaultdict
 import ray, openai
 from num2words import num2words
-import time, os, sys, re, json, datetime
+import time, os, sys, re, json, datetime, io
 import random
 from dotenv import load_dotenv
 import pandas as pd
@@ -21,16 +21,16 @@ FRAMEWORKS = [
     "tgi"
 ]
 
+NUMBER_OF_START_PLUS_END_TOKENS = 4
+
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 # TODO(mwk): We use one tokenizer for all models, but we should
 # consider using each framework's tokenizer
 
-# TODO(mwk): too much dependence on args globally. Clean up methods to not directly
-# read from args to facilitate writing scripts.
 
 tokenizer = LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer")
-sys_prompt = "You are a helpful assistant that respeonds with the answer in the most concise possible way."
+sys_prompt = "You are a helpful assistant that responds with the answer in the most concise possible way."
 
 
 class LineIterator:
@@ -75,7 +75,7 @@ class LineIterator:
 
 
 # NOTE: The defaults are set to mirror our production traffic
-def prompt_generator(num_digits=3, min_lines=15, max_lines=1000, file_lines=[]) -> str:
+def prompt_generator(requested_lines: int, num_digits=3, min_lines=15, max_lines=1000, file_lines=[]) -> str:
     # Step 1: Generate a random number
     # Generate the number of digits specified (e.g. if NUM_DIGITS = 3, then
     # any number between 100 and 1000 is OK).
@@ -88,18 +88,26 @@ def prompt_generator(num_digits=3, min_lines=15, max_lines=1000, file_lines=[]) 
     rnd_num_words = num2words(rnd_num)
 
     # Step 3: convert to a prompt
-    user_prompt = f"Convert the following sequence of words into a number: {rnd_num_words}.\nPrint the number first. Then pick {args.req_lines} lines from these poem lines:\n{rnd_picked_lines}"
+    user_prompt = f"Convert the following sequence of words into a number: {rnd_num_words}.\nPrint the number first. Then pick {requested_lines} lines from these poem lines:\n{rnd_picked_lines}"
 
     return user_prompt, rnd_num
 
 
 @ray.remote(num_cpus=0.001)
-def validate(ep_config, sample_lines):
-    # The 4 is for the end and start tokens of the messages
+def validate(
+    ep_config,
+    sample_lines: list,
+    num_digits: int,
+    min_lines: int,
+    max_lines: int,
+    max_tokens: int,
+    requested_lines: int
+    ):
     prompt, rnd_num = prompt_generator(
-        args.num_digits, args.min_lines, args.max_lines, sample_lines
+        requested_lines, num_digits, min_lines, max_lines, sample_lines
     )
-    tokens_in = len(tokenizer.encode(prompt)) + len(tokenizer.encode(sys_prompt)) + 4
+    # Account for the end and start tokens of the messages
+    tokens_in = len(tokenizer.encode(prompt)) + len(tokenizer.encode(sys_prompt)) + NUMBER_OF_START_PLUS_END_TOKENS
     words = ""
     id = None
     st = et = ttft = 0
@@ -121,7 +129,7 @@ def validate(ep_config, sample_lines):
                 messages=messages,
                 api_key=ep_config["api_key"],
                 api_base=ep_config["api_base"],
-                max_tokens=args.max_tokens,
+                max_tokens=max_tokens,
                 # Please keep temp at 0. Otherwise increases the number of mismatches.
                 temperature=0,
                 # Do not set to false. You will get bogus results.
@@ -145,7 +153,7 @@ def validate(ep_config, sample_lines):
             payload = {
                 "model": ep_config["model"],
                 "prompt": sys_prompt + prompt,
-                "max_tokens": args.max_tokens,
+                "max_tokens": max_tokens,
                 "temperature": 0,
                 "stream_tokens": True,
             }
@@ -177,7 +185,7 @@ def validate(ep_config, sample_lines):
             responses = chat.send_message_streaming(
                 message=prompt,
                 temperature=0,
-                max_output_tokens=args.max_tokens,
+                max_output_tokens=max_tokens,
             )
             results = []
             for response in responses:
@@ -200,7 +208,7 @@ def validate(ep_config, sample_lines):
                 ]
             ],
             "parameters": {
-                "max_new_tokens": args.max_tokens,
+                "max_new_tokens": max_tokens,
                 ## we can't set temperature to 0 in SM
                 "temperature": 0.01,
             },
@@ -256,22 +264,33 @@ def validate(ep_config, sample_lines):
     return (valid, ttft, et - st, tokens_in, tokens_out, cause, id)
 
 
-def endpoint_evaluation(ep_config, sample_lines):
+def endpoint_evaluation(
+    ep_config,
+    sample_lines: list,
+    total_requests: int,
+    concurrent_requests: int,
+    sleep_time: int,
+    num_digits: int,
+    min_lines: int,
+    max_lines: int,
+    max_tokens: int,
+    requested_lines: int
+    ):
     query_results = []
     overall_start_time = time.time()
-    num_rounds = int(args.total_requests / args.concur_requests)
+    num_rounds = int(total_requests / concurrent_requests)
     for i in range(num_rounds):
         print(f"Starting round {i}")
         st = time.time()
         futures = [
-            validate.remote(ep_config, sample_lines)
-            for _ in range(args.concur_requests)
+            validate.remote(ep_config, sample_lines, num_digits, min_lines, max_lines, max_tokens, requested_lines)
+            for _ in range(concurrent_requests)
         ]
         results = ray.get(futures)
         query_results.extend(results)
         et = time.time()
         elt = et - st
-        tosleep = args.sleep - elt
+        tosleep = sleep_time - elt
         if tosleep > 0:
             print("Sleeping for %.4f seconds" % tosleep)
             time.sleep(tosleep)
@@ -471,13 +490,23 @@ if __name__ == "__main__":
 
     endpoint_config["framework"] = args.framework
     endpoint_config["model"] = args.model
-
     f = open(args.random_lines_file_name, "r")
     sample_lines = f.readlines()
     f.close()
 
     ## Endpoint evaluation
-    query_results = endpoint_evaluation(endpoint_config, sample_lines)
+    query_results = endpoint_evaluation(
+        endpoint_config,
+        sample_lines,
+        total_requests=args.total_requests,
+        concurrent_requests=args.concur_requests,
+        sleep_time=args.sleep,
+        num_digits=args.num_digits,
+        min_lines=args.min_lines,
+        max_lines=args.max_lines,
+        max_tokens=args.max_tokens,
+        requested_lines=args.req_lines
+    )
 
     ## Results Analysis
     args.api_base = endpoint_config["api_base"]
