@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "LLMPerf"
+version = "0.1.0"
+description = "A framework for load testing LLM APIs"
+authors = [{name="Avnish Narayan", email="avnish@anyscale.com"}]
+license = {text= "Apache-2.0"}
+requires-python = ">=3.8, <3.11"
+dependencies = ["pydantic<2.5",
+                "ray", 
+                "pytest>=6.0", 
+                "seaborn>=0.11", 
+                "awscli>=1.22", 
+                "typer>=0.4", 
+                "litellm>=0.1.738", 
+                "num2words",
+                "transformers",
+                "tqdm",
+                "boto3",
+                "google-cloud-aiplatform"]
