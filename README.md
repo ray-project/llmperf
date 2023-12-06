@@ -88,7 +88,7 @@ python token_benchmark_ray.py \
 
 ```
 
-### HuggingFacAPI
+### HuggingFace API
 
 ```bash
 export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY"
