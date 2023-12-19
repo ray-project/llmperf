@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
+import random
 
 import pandas as pd
 import ray
@@ -35,6 +36,7 @@ def get_token_throughput_latencies(
     max_num_completed_requests: int = 500,
     test_timeout_s=90,
     llm_api="openai",
+    json_model_prob: float = 0.0,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Get the token throughput and latencies for the given model.
 
@@ -50,6 +52,7 @@ def get_token_throughput_latencies(
             this to increase the amount of load and vice versa.
         test_timeout_s: The amount of time to run the test for before reporting results.
         llm_api: The name of the llm api to use. Either "openai" or "litellm".
+        json_mode_prob: The probablity with which to enable json mode for queries.
 
     Returns:
         A summary of the performance metrics collected across all completed requests
@@ -60,7 +63,7 @@ def get_token_throughput_latencies(
         "hf-internal-testing/llama-tokenizer"
     )
     get_token_length = lambda text: len(tokenizer.encode(text))
-    
+
     if not additional_sampling_params:
         additional_sampling_params = {}
 
@@ -80,7 +83,7 @@ def get_token_throughput_latencies(
             mean_output_tokens, stddev_output_tokens
         )
 
-        prompt = randomly_sample_sonnet_lines_prompt(
+        prompt, prompt_length = randomly_sample_sonnet_lines_prompt(
             prompt_tokens_mean=mean_input_tokens,
             prompt_tokens_stddev=stddev_input_tokens,
             expect_output_tokens=num_output_tokens,
@@ -88,9 +91,16 @@ def get_token_throughput_latencies(
 
         default_sampling_params = {"max_tokens": num_output_tokens}
         default_sampling_params.update(additional_sampling_params)
+
+        if json_model_prob > 0 and random.random() < json_model_prob:
+            # When using JSON Mode, we don't update the token count because the
+            # impact is negligible, but the implementation is simpler.
+            prompt += "Output in JSON"
+            default_sampling_params["response_format"] = {"type": "json_object"}
+
         request_config = RequestConfig(
             model=model,
-            prompt=prompt,
+            prompt=(prompt, prompt_length),
             sampling_params=default_sampling_params,
             llm_api=llm_api,
         )
@@ -265,6 +275,7 @@ def run_token_benchmark(
     additional_sampling_params: str,
     results_dir: str,
     user_metadata: Dict[str, Any],
+    json_mode_prob: float,
 ):
     """
     Args:
@@ -282,6 +293,7 @@ def run_token_benchmark(
             For more information see the LLM APIs documentation for the completions.
         results_dir: The directory to save the results to.
         user_metadata: Additional metadata to include in the results.
+        json_mode_prob: The probablity with which to enable json mode for queries.
     """
     if mean_input_tokens < 40:
         print(
@@ -300,6 +312,7 @@ def run_token_benchmark(
         stddev_output_tokens=stddev_output_tokens,
         num_concurrent_requests=num_concurrent_requests,
         additional_sampling_params=json.loads(additional_sampling_params),
+        json_model_prob=json_mode_prob,
     )
 
     if results_dir:
@@ -436,6 +449,14 @@ args.add_argument(
     ),
 )
 
+args.add_argument(
+    "--json-mode-prob",
+    type=float,
+    default=0.0,
+    help=(
+        "The probablity with which we enable json mode for queries."
+    )
+)
 if __name__ == "__main__":
     env_vars = dict(os.environ)
     ray.init(runtime_env={"env_vars": env_vars})
@@ -461,4 +482,5 @@ if __name__ == "__main__":
         additional_sampling_params=args.additional_sampling_params,
         results_dir=args.results_dir,
         user_metadata=user_metadata,
+        json_mode_prob=args.json_mode_prob,
     )
