@@ -25,6 +25,13 @@ from tqdm import tqdm
 
 from transformers import LlamaTokenizerFast
 
+# TO BE REMOVED
+from pydantic import BaseModel
+class Answer(BaseModel):
+    line: str
+
+schema = Answer.schema_json()
+
 def get_token_throughput_latencies(
     model: str,
     mean_input_tokens: int,
@@ -96,7 +103,11 @@ def get_token_throughput_latencies(
             # When using JSON Mode, we don't update the token count because the
             # impact is negligible, but the implementation is simpler.
             prompt += "Output in JSON"
-            default_sampling_params["response_format"] = {"type": "json_object"}
+            default_sampling_params["response_format"] = {
+                "type": "json_object",
+                # TO BE REMOVED
+                "schema": Answer.schema_json(),
+            }
 
         request_config = RequestConfig(
             model=model,
