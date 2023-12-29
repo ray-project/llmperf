@@ -96,7 +96,7 @@ python token_benchmark_ray.py \
 
 ```
 
-### HuggingFace
+### Hugging Face
 
 ```bash
 export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY"
@@ -252,7 +252,7 @@ python llm_correctness.py \
 
 ```
 
-### HuggingFace
+### Hugging Face
 
 ```bash
 export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY"
