@@ -29,6 +29,14 @@ Where the lines are randomly sampled from a collection of lines from Shakespeare
 
 To run the most basic load test you can the token_benchmark_ray script.
 
+
+### Caveats and Disclaimers
+
+- The endpoints provider backend might vary widely, so this is not a reflection on how the software runs on a particular hardware.
+- The results may vary with time of day.
+- The results may vary with the load.
+- The results may not correlate with users’ workloads.
+
 ### OpenAI Compatible APIs
 ```bash
 export OPENAI_API_KEY=secret_abcdefg
@@ -244,7 +252,7 @@ python llm_correctness.py \
 
 ```
 
-### HuggingFacAPI
+### HuggingFaceAPI
 
 ```bash
 export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY"
@@ -402,6 +410,8 @@ class CustomLLMClient(LLMClient):
         ...
 
 ```
+
+
 
 # Legacy Codebase
 The old LLMPerf code base can be found in the [llmperf-legacy](https://github.com/ray-project/llmval-legacy) repo.
