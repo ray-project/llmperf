@@ -338,6 +338,27 @@ python llm_correctness.py \
 
 ```
 
+
+### AzureAI Compatible APIs
+```bash
+export AZUREAI_API_KEY=secret_abcdefg
+export AZUREAI_API_BASE="https://api.endpoints.anyscale.com/v1"
+
+python token_benchmark_ray.py \
+--model "Llama-2-70b-chat" \
+--mean-input-tokens 550 \
+--stddev-input-tokens 150 \
+--mean-output-tokens 150 \
+--stddev-output-tokens 10 \
+--max-num-completed-requests 2 \
+--timeout 600 \
+--num-concurrent-requests 1 \
+--results-dir "result_outputs" \
+--llm-api azureai \
+--additional-sampling-params '{}'
+
+```
+
 ## Saving Results
 
 The results of the load test and correctness test are saved in the results directory specified by the `--results-dir` argument. The results are saved in 2 files, one with the summary metrics of the test, and one with metrics from each individual request that is returned.
