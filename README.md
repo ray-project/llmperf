@@ -193,6 +193,28 @@ python llm_correctness.py \
 
 ```
 
+
+### AzureAI Compatible APIs
+```bash
+export AZUREAI_API_KEY=secret_abcdefg
+export AZUREAI_API_BASE="https://api.endpoints.anyscale.com/v1"
+
+python token_benchmark_ray.py \
+--model "Llama-2-70b-chat" \
+--mean-input-tokens 550 \
+--stddev-input-tokens 150 \
+--mean-output-tokens 150 \
+--stddev-output-tokens 10 \
+--max-num-completed-requests 2 \
+--timeout 600 \
+--num-concurrent-requests 1 \
+--results-dir "result_outputs" \
+--llm-api azureai \
+--additional-sampling-params '{}'
+
+```
+
+
 see `python token_benchmark_ray.py --help` for more details on the arguments.
 
 ## Correctness Test
@@ -338,26 +360,6 @@ python llm_correctness.py \
 
 ```
 
-
-### AzureAI Compatible APIs
-```bash
-export AZUREAI_API_KEY=secret_abcdefg
-export AZUREAI_API_BASE="https://api.endpoints.anyscale.com/v1"
-
-python token_benchmark_ray.py \
---model "Llama-2-70b-chat" \
---mean-input-tokens 550 \
---stddev-input-tokens 150 \
---mean-output-tokens 150 \
---stddev-output-tokens 10 \
---max-num-completed-requests 2 \
---timeout 600 \
---num-concurrent-requests 1 \
---results-dir "result_outputs" \
---llm-api azureai \
---additional-sampling-params '{}'
-
-```
 
 ## Saving Results
 
