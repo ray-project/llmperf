@@ -1,6 +1,6 @@
 # LLMPerf
 
-A Tool for evaulation the performance of LLM APIs.
+A Tool for evaluating the performance of LLM APIs.
 
 # Installation
 ```bash
@@ -15,7 +15,7 @@ We implement 2 tests for evaluating LLMs: a load test to check for performance a
 
 ## Load test
 
-The load test spawns a number of concurrent requests to the LLM API and measures the inter-token latency and generation throughput per request and across concurrent requests. The prompt that is sent with each request is of the format:
+The load test spawns a number of concurrent requests to the LLM API, and measures the inter-token latency, and token generation throughput per request and across concurrent requests. The prompt that is sent with each request is of the format:
 
 ```
 Randomly stream lines from the following text. Don't generate eos tokens:
@@ -27,12 +27,12 @@ LINE 3,
 
 Where the lines are randomly sampled from a collection of lines from Shakespeare sonnets. Tokens are counted using the `LlamaTokenizer` regardless of which LLM API is being tested. This is to ensure that the prompts are consistent across different LLM APIs.
 
-To run the most basic load test you can the token_benchmark_ray script.
+To run the most basic load test, you can use the token_benchmark_ray.py script.
 
 
 ### Caveats and Disclaimers
 
-- The endpoints provider backend might vary widely, so this is not a reflection on how the software runs on a particular hardware.
+- The backend of different endpoint providers might vary widely, so this is not a reflection on how the software runs on a particular hardware.
 - The results may vary with time of day.
 - The results may vary with the load.
 - The results may not correlate with users’ workloads.
@@ -119,9 +119,7 @@ python token_benchmark_ray.py \
 
 ### LiteLLM
 
-LLMPerf can use LiteLLM to send prompts to LLM APIs. To see the environment variables to set for the provider and arguments that one should set for model and additional-sampling-params.
-
-see the [LiteLLM Provider Documentation](https://docs.litellm.ai/docs/providers).
+LLMPerf can use LiteLLM to send prompts to LLM APIs. To see the environment variables to set for the provider and arguments to set for model and additional-sampling-params, see the [LiteLLM Provider Documentation](https://docs.litellm.ai/docs/providers).
 
 ```bash
 python token_benchmark_ray.py \
@@ -207,7 +205,7 @@ where random_number_in_word_format could be for example "one hundred and twenty 
 
 The test does this for a number of randomly generated numbers and reports the number of responses that contain a mismatch.
 
-To run the most basic correctness test you can run the the llm_correctness.py script.
+To run the most basic correctness test, you can run the the llm_correctness.py script.
 
 ### OpenAI Compatible APIs
 
