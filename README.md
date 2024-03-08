@@ -197,7 +197,7 @@ python llm_correctness.py \
 ### AzureAI Compatible APIs
 ```bash
 export AZUREAI_API_KEY=secret_abcdefg
-export AZUREAI_API_BASE="https://api.endpoints.anyscale.com/v1"
+export AZUREAI_API_BASE="https://api.endpoints.ai.azure.com/v1"
 
 python token_benchmark_ray.py \
 --model "Llama-2-70b-chat" \
