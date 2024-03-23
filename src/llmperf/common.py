@@ -5,7 +5,7 @@ from llmperf.ray_clients.openai_chat_completions_client import (
 )
 from llmperf.ray_clients.sagemaker_client import SageMakerClient
 from llmperf.ray_clients.vertexai_client import VertexAIClient
-from .ray_clients.predibase_client import PrediBaseClient
+from llmperf.ray_clients.predibase_client import PrediBaseClient
 from llmperf.ray_llm_client import LLMClient
 
 
