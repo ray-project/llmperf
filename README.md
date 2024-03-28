@@ -262,7 +262,7 @@ export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY" # only for IE and API
 # local testing "http://localhost:8000"
 # serverless hosted models "https://api-inference.huggingface.co"
 # Inference endpoints, e.g. "https://ptrlmejh4tjmcb4t.us-east-1.aws.endpoints.huggingface.cloud"
-export HUGGINGFACE_API_BASE="http://localhost:8080"
+export HUGGINGFACE_API_BASE="YOUR_HUGGINGFACE_URL"
 export MODEL_ID="HuggingFaceH4/zephyr-7b-beta"
 
 python llm_correctness.py \

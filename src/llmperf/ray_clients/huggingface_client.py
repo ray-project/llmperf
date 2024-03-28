@@ -17,10 +17,24 @@ class HuggingFaceTgiClient(LLMClient):
     """Client for Hugging Face TGI"""
 
     def llm_request(self, request_config: RequestConfig) -> Dict[str, Any]:
+        address = os.environ.get(
+            "HUGGINGFACE_API_BASE", "https://api-inference.huggingface.co"
+        )
+        token = os.environ.get("HUGGINGFACE_API_TOKEN", "")
+
+        # Adds the model name to the address if it is not "local" or "inference endpoint"
+        if address == "https://api-inference.huggingface.co":
+            address = f"{address}/models/{request_config.model}"
+        headers = {
+            "Authorization": f"Bearer {os.environ.get('HUGGINGFACE_API_TOKEN', '')}"
+        }
+
         prompt = request_config.prompt
         prompt, prompt_len = prompt
 
-        tokenizer = AutoTokenizer.from_pretrained(request_config.model)
+        tokenizer = AutoTokenizer.from_pretrained(
+            request_config.model, use_auth_token=token if token else None
+        )
         # try to apply chat template with system message if error retry without system message
         try:
             prompt = tokenizer.apply_chat_template(
@@ -53,13 +67,6 @@ class HuggingFaceTgiClient(LLMClient):
                 **request_config.sampling_params,
             },
             "stream": True,
-        }
-        address = os.environ.get("HUGGINGFACE_API_BASE", "https://api-inference.huggingface.co")
-        # Adds the model name to the address if it is not "local" or "inference endpoint"
-        if address == "https://api-inference.huggingface.co":
-            address = f"{address}/models/{request_config.model}"
-        headers = {
-            "Authorization": f"Bearer {os.environ.get('HUGGINGFACE_API_TOKEN', '')}"
         }
 
         time_to_next_token = []
