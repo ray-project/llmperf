@@ -38,7 +38,6 @@ class HuggingFaceTgiClient(LLMClient):
         # try to apply chat template with system message if error retry without system message
         if getattr(tokenizer,"chat_template", None) is None:
             print("Chat template not found in tokenizer. Using default prompt")
-            prompt = prompt
         else:
             try:
                 prompt = tokenizer.apply_chat_template(
