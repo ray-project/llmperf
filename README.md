@@ -99,11 +99,15 @@ python token_benchmark_ray.py \
 ### Hugging Face
 
 ```bash
-export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY"
-export HUGGINGFACE_API_BASE="YOUR_HUGGINGFACE_API_ENDPOINT"
+export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY" # only for IE and API
+# local testing "http://localhost:8000"
+# serverless hosted models "https://api-inference.huggingface.co"
+# Inference endpoints, e.g. "https://ptrlmejh4tjmcb4t.us-east-1.aws.endpoints.huggingface.cloud"
+export HUGGINGFACE_API_BASE="YOUR_HUGGINGFACE_URL"
+export MODEL_ID="meta-llama/Llama-2-7b-chat-hf"
 
 python token_benchmark_ray.py \
---model "huggingface/meta-llama/Llama-2-7b-chat-hf" \
+--model $MODEL_ID \
 --mean-input-tokens 550 \
 --stddev-input-tokens 150 \
 --mean-output-tokens 150 \
@@ -112,9 +116,8 @@ python token_benchmark_ray.py \
 --timeout 600 \
 --num-concurrent-requests 1 \
 --results-dir "result_outputs" \
---llm-api "litellm" \
+--llm-api huggingface \
 --additional-sampling-params '{}'
-
 ```
 
 ### LiteLLM
@@ -255,16 +258,20 @@ python llm_correctness.py \
 ### Hugging Face
 
 ```bash
-export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY"
-export HUGGINGFACE_API_BASE="YOUR_HUGGINGFACE_API_ENDPOINT"
+export HUGGINGFACE_API_KEY="YOUR_HUGGINGFACE_API_KEY" # only for IE and API
+# local testing "http://localhost:8000"
+# serverless hosted models "https://api-inference.huggingface.co"
+# Inference endpoints, e.g. "https://ptrlmejh4tjmcb4t.us-east-1.aws.endpoints.huggingface.cloud"
+export HUGGINGFACE_API_BASE="http://localhost:8080"
+export MODEL_ID="HuggingFaceH4/zephyr-7b-beta"
 
 python llm_correctness.py \
---model "huggingface/meta-llama/Llama-2-7b-chat-hf" \
---llm-api "litellm" \
+--model $MODEL_ID \
+--llm-api huggingface \
 --max-num-completed-requests 2 \
 --timeout 600 \
 --num-concurrent-requests 1 \
---results-dir "result_outputs" \
+--results-dir "result_outputs" 
 
 ```
 
