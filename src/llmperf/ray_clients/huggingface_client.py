@@ -36,22 +36,25 @@ class HuggingFaceTgiClient(LLMClient):
             request_config.model, use_auth_token=token if token else None
         )
         # try to apply chat template with system message if error retry without system message
-        try:
-            prompt = tokenizer.apply_chat_template(
-                [
-                    {"role": "system", "content": ""},
-                    {"role": "user", "content": prompt},
-                ],
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        except:
-            prompt = tokenizer.apply_chat_template(
-                [{"role": "user", "content": prompt}],
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-
+        if getattr(tokenizer,"chat_template", None) is None:
+            print("Chat template not found in tokenizer. Using default prompt")
+            prompt = prompt
+        else:
+            try:
+                prompt = tokenizer.apply_chat_template(
+                    [
+                        {"role": "system", "content": ""},
+                        {"role": "user", "content": prompt},
+                    ],
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+            except:
+                prompt = tokenizer.apply_chat_template(
+                    [{"role": "user", "content": prompt}],
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
         # update prompt_len to match include special tokens
         prompt_len = len(tokenizer(prompt).input_ids)
 
