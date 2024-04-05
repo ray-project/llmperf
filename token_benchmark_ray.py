@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import time
+import random
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -56,6 +57,8 @@ def get_token_throughput_latencies(
         (e.g. throughput, latencies, etc.)
         The individual metrics for each request.
     """
+    random.seed(11111)
+
     tokenizer = LlamaTokenizerFast.from_pretrained(
         "hf-internal-testing/llama-tokenizer"
     )
@@ -110,6 +113,7 @@ def get_token_throughput_latencies(
                     request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
                 request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
                 request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
+                request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
                 all_metrics.append(request_metrics)
             completed_requests.extend(all_metrics)
         pbar.update(len(completed_requests) - num_completed_requests)
@@ -132,6 +136,7 @@ def get_token_throughput_latencies(
             request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
         request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
         request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
+        request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
                 
         all_metrics.append(request_metrics)
     completed_requests.extend(all_metrics)

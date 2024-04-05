@@ -82,6 +82,7 @@ class LiteLLMClient(LLMClient):
             total_request_time = time.monotonic() - start_time
 
             output_throughput = tokens_received / total_request_time
+            print(f"{tokens_received} / {total_request_time}")
 
         except Exception as e:
             metrics[common_metrics.ERROR_MSG] = error_msg
