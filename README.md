@@ -4,7 +4,7 @@ A Tool for evaulation the performance of LLM APIs.
 
 # Installation
 ```bash
-git clone https://github.com/ray-project/llmperf.git
+git clone https://github.com/philschmid/llmperf.git
 cd llmperf
 pip install -e .
 ```
