@@ -26,23 +26,35 @@ class SageMakerClient(LLMClient):
 
     def llm_request(self, request_config: RequestConfig) -> Dict[str, Any]:
         if not os.environ.get("AWS_ACCESS_KEY_ID"):
-            raise ValueError("AWS_ACCESS_KEY_ID must be set.")
+            print(
+                f"No AWS_ACCESS_KEY_ID found in the environment. Use the default AWS credentials."
+            )
         if not os.environ.get("AWS_SECRET_ACCESS_KEY"):
-            raise ValueError("AWS_SECRET_ACCESS_KEY must be set.")
-        if not os.environ.get("AWS_REGION_NAME"):
-            raise ValueError("AWS_REGION_NAME must be set.")
+            print(
+                f"No AWS_SECRET_ACCESS_KEY found in the environment. Use the default AWS credentials."
+            )
+        region = os.environ.get("AWS_REGION", None)
+        if not region:
+            print(
+                f"No AWS_REGION found in the environment. Use the default AWS credentials."
+            )
+
+        is_messages_api = os.environ.get("MESSAGES_API", "false").lower() == "true"
+        is_jumpstart = os.environ.get("JUMPSTART", "false").lower() == "true"
 
         prompt = request_config.prompt
         prompt, prompt_len = prompt
 
-        message = [
-            {"role": "system", "content": ""},
-            {"role": "user", "content": prompt},
-        ]
+        if is_jumpstart or is_messages_api:
+            message = [
+                {"role": "system", "content": ""},
+                {"role": "user", "content": prompt},
+            ]
+        else:
+            message = prompt
+
         model = request_config.model
-        sm_runtime = boto3.client(
-            "sagemaker-runtime", region_name=os.environ.get("AWS_REGION_NAME")
-        )
+        sm_runtime = boto3.client("sagemaker-runtime", region_name=region)
 
         sampling_params = request_config.sampling_params
 
@@ -50,16 +62,12 @@ class SageMakerClient(LLMClient):
             sampling_params["max_new_tokens"] = sampling_params["max_tokens"]
             del sampling_params["max_tokens"]
 
-        message = {
-            "inputs": [
-                [
-                    {"role": "system", "content": ""},
-                    {"role": "user", "content": prompt},
-                ]
-            ],
+        payload = {
+            "inputs": message,
             "parameters": {
                 **request_config.sampling_params,
             },
+            "stream": True,
         }
 
         time_to_next_token = []
@@ -79,23 +87,28 @@ class SageMakerClient(LLMClient):
             response = sm_runtime.invoke_endpoint_with_response_stream(
                 EndpointName=model,
                 ContentType="application/json",
-                Body=json.dumps(message),
-                CustomAttributes="accept_eula=true",
+                Body=json.dumps(payload),
+                CustomAttributes="accept_eula=true" if is_jumpstart else "",
             )
 
             event_stream = response["Body"]
             json_byte = b""
+            generated_text = prompt
+            start_json = b"{"
+
             for line, ttft, _ in LineIterator(event_stream):
-                json_byte += line
                 time_to_next_token.append(
                     time.monotonic() - most_recent_received_token_time
                 )
                 most_recent_received_token_time = time.monotonic()
+                if line != b"" and start_json in line:
+                    data = json.loads(line[line.find(start_json) :].decode("utf-8"))
+                    generated_text += data["token"]["text"]
             ttft = ttft - start_time
-            resp = json.loads(json_byte)
             total_request_time = time.monotonic() - start_time
-            generated_text = resp[0]["generation"]["content"]
-            tokens_received = len(self.tokenizer.encode(generated_text))
+            if is_jumpstart:
+                raise NotImplementedError("No tests for Jumpstart yet")
+            tokens_received = len(self.tokenizer(generated_text).input_ids)
             output_throughput = tokens_received / total_request_time
 
         except Exception as e:
@@ -106,7 +119,7 @@ class SageMakerClient(LLMClient):
 
         metrics[common_metrics.ERROR_MSG] = error_msg
         metrics[common_metrics.ERROR_CODE] = error_response_code
-        metrics[common_metrics.INTER_TOKEN_LAT] = time_to_next_token
+        metrics[common_metrics.INTER_TOKEN_LAT] = sum(time_to_next_token)
         metrics[common_metrics.TTFT] = ttft
         metrics[common_metrics.E2E_LAT] = total_request_time
         metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = output_throughput
