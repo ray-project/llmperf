@@ -58,17 +58,25 @@ class SageMakerClient(LLMClient):
 
         sampling_params = request_config.sampling_params
 
-        if "max_tokens" in sampling_params:
+        if "max_tokens" in sampling_params and not is_messages_api:
             sampling_params["max_new_tokens"] = sampling_params["max_tokens"]
             del sampling_params["max_tokens"]
 
-        payload = {
-            "inputs": message,
-            "parameters": {
+        if is_messages_api:
+            payload = {
+                "messages": message,
+                "model": model,
                 **request_config.sampling_params,
-            },
-            "stream": True,
-        }
+                "stream": True,
+            }
+        else:
+            payload = {
+                "inputs": message,
+                "parameters": {
+                    **request_config.sampling_params,
+                },
+                "stream": True,
+            }
 
         time_to_next_token = []
         tokens_received = 0
@@ -103,7 +111,10 @@ class SageMakerClient(LLMClient):
                 most_recent_received_token_time = time.monotonic()
                 if line != b"" and start_json in line:
                     data = json.loads(line[line.find(start_json) :].decode("utf-8"))
-                    generated_text += data["token"]["text"]
+                    if is_messages_api:
+                        generated_text += data["choices"][0]["delta"]["content"]
+                    else:
+                        generated_text += data["token"]["text"]
             ttft = ttft - start_time
             total_request_time = time.monotonic() - start_time
             if is_jumpstart:
