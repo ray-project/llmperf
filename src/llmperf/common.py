@@ -1,6 +1,6 @@
 from typing import List
 from llmperf.ray_clients.litellm_client import LiteLLMClient
-from llmperf.ray_clients.llama2 import Llama2LLMClient
+from llmperf.ray_clients.llama import LlamaLLMClient
 from llmperf.ray_clients.openai_chat_completions_client import (
     OpenAIChatCompletionsClient,
 )
@@ -9,7 +9,7 @@ from llmperf.ray_clients.vertexai_client import VertexAIClient
 from llmperf.ray_llm_client import LLMClient
 
 
-SUPPORTED_APIS = ["openai", "anthropic", "litellm", "llama2"]
+SUPPORTED_APIS = ["openai", "anthropic", "litellm", "llama"]
 
 
 def construct_clients(llm_api: str, num_clients: int) -> List[LLMClient]:
@@ -29,8 +29,8 @@ def construct_clients(llm_api: str, num_clients: int) -> List[LLMClient]:
         clients = [SageMakerClient.remote() for _ in range(num_clients)]
     elif llm_api == "vertexai":
         clients = [VertexAIClient.remote() for _ in range(num_clients)]
-    elif llm_api == "llama2":
-        clients = [Llama2LLMClient.remote() for _ in range(num_clients)]
+    elif llm_api == "llama":
+        clients = [LlamaLLMClient.remote() for _ in range(num_clients)]
     elif llm_api in SUPPORTED_APIS:
         clients = [LiteLLMClient.remote() for _ in range(num_clients)]
     else:
