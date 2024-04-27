@@ -5,13 +5,13 @@ And summer's lease hath all too short a date:
 Sometime too hot the eye of heaven shines,
 And often is his gold complexion dimm'd;
 And every fair from fair sometime declines,
-By chance or nature's changing course untrimm'd;
+By chance, or nature's changing course untrimm'd;
 But thy eternal summer shall not fade
 Nor lose possession of that fair thou owest;
 Nor shall Death brag thou wander'st in his shade,
 When in eternal lines to time thou growest:
 So long as men can breathe or eyes can see,
-So long lives this and this gives life to thee.
+So long lives this, and this gives life to thee.
 Then let not winter's ragged hand deface
 In thee thy summer, ere thou be distill'd:
 Make sweet some vial; treasure thou some place
@@ -37,7 +37,7 @@ And gives thy pen both skill and argument.
 Rise, resty Muse, my love's sweet face survey,
 If Time have any wrinkle graven there;
 If any, be a satire to decay,
-And make Time's spoils despised every where.
+And make Time's spoils despised everywhere.
 Give my love fame faster than Time wastes life;
 So thou prevent'st his scythe and crooked knife.
 My glass shall not persuade me I am old,
