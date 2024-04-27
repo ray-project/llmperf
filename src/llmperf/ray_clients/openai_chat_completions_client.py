@@ -87,8 +87,14 @@ class OpenAIChatCompletionsClient(LLMClient):
                         error_msg = data["error"]["message"]
                         error_response_code = data["error"]["code"]
                         raise RuntimeError(data["error"]["message"])
-                        
-                    delta = data["choices"][0]["delta"]
+                    
+                    if "choices" in data and len(data["choices"]) > 0:
+                        delta = data["choices"][0].get("delta", None)
+                        if delta is None:
+                            continue
+                    else:
+                        continue
+
                     if delta.get("content", None):
                         if not ttft:
                             ttft = time.monotonic() - start_time
