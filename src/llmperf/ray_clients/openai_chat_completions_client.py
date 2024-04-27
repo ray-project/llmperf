@@ -88,12 +88,10 @@ class OpenAIChatCompletionsClient(LLMClient):
                         error_response_code = data["error"]["code"]
                         raise RuntimeError(data["error"]["message"])
                     
-                    if "choices" in data and len(data["choices"]) > 0:
-                        delta = data["choices"][0].get("delta", None)
-                        if delta is None:
+                    if "choices" in data and data["choices"]:
+                        delta = data["choices"][0].get("delta")
+                        if not delta:
                             continue
-                    else:
-                        continue
 
                     if delta.get("content", None):
                         if not ttft:
