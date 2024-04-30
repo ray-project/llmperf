@@ -4,6 +4,7 @@ import ray
 
 from llmperf.ray_llm_client import LLMClient
 from llmperf.models import RequestConfig
+from llmperf.utils import build_providers, setup_environment_variables
 from llmperf import common_metrics
 
 
@@ -15,6 +16,10 @@ class LiteLLMClient(LLMClient):
         # litellm package isn't serializable, so we import it within the function
         # to maintain compatibility with ray.
         from litellm import completion, validate_environment
+
+        providers = build_providers(request_config.base_url)
+
+        setup_environment_variables(providers[request_config.provider])
 
         prompt = request_config.prompt
         prompt, prompt_len = prompt

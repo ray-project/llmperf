@@ -5,11 +5,68 @@ import random
 import subprocess
 import time
 from typing import Any, Dict, Tuple
-
+import dotenv
+import os
+from colorama import Fore, Style
 from transformers import LlamaTokenizerFast
 
 
 RESULTS_VERSION = "2023-08-31"
+
+
+def build_providers(base_url: str | None) -> dict:
+    return {
+        "openai": {
+            "environment": {"set": {"OPENAI_API_BASE": "https://api.openai.com/v1"}}
+        },
+        "anthropic": {},
+        "cohere": {},
+        "vertex_ai": {},
+        "huggingface": {"environment": {"set": {"HUGGINGFACE_API_BASE": base_url}}},
+        "anyscale": {
+            "environment": {
+                "set": {"OPENAI_API_BASE": "https://api.endpoints.anyscale.com/v1"},
+                "map": {"OPENAI_API_KEY": "ANYSCALE_API_KEY"},
+            }
+        },
+        "replicate": {},
+        "mistral": {},
+        "fireworks": {
+            "environment": {
+                "set": {"OPENAI_API_BASE": "https://api.fireworks.ai/inference/v1"},
+                "map": {"OPENAI_API_KEY": "FIREWORKS_API_KEY"},
+            }
+        },
+        "deepinfra": {},
+        "bedrock": {},
+        "perplexity": {
+            "environment": {
+                "set": {"OPENAI_API_BASE": "https://api.perplexity.ai"},
+                "map": {"OPENAI_API_KEY": "PERPLEXITY_API_KEY"},
+            }
+        },
+        "groq": {},
+        "lepton": {
+            "environment": {
+                "set": {"OPENAI_API_BASE": base_url},
+                "map": {"OPENAI_API_KEY": "LEPTON_API_KEY"},
+            }
+        },
+        "octo-ai": {
+            "environment": {
+                "set": {"OPENAI_API_BASE": "https://text.octoai.run/v1"},
+                "map": {"OPENAI_API_KEY": "OCTO_AI_API_KEY"},
+            }
+        },
+        "together_ai": {},
+        "azure": {
+            "environment": {
+                "set": {"OPENAI_API_BASE": base_url},
+                "map": {"OPENAI_API_KEY": "AZURE_API_KEY"},
+            }
+        },
+        "cloudflare-workers": {},
+    }
 
 
 class LLMPerfResults:
@@ -145,3 +202,48 @@ def flatten_dict(d, parent_key="", sep="_"):
         else:
             items.append((new_key, v))
     return dict(items)
+
+
+def setup_environment_variables(environment: dict) -> None:
+    """
+    Load environment variables from a .env file and set or map new variables based on the provided dictionary.
+
+    Args:
+        environment (dict): A dictionary containing 'set' and/or 'map' keys with sub-dictionaries as values.
+            'set' is used to directly set environment variables.
+            'map' is used to map existing environment variables to new keys.
+    """
+    # Load environment variables from a .env file
+    dotenv.load_dotenv()
+
+    # Set new environment variables if 'set' key is present
+    if "set" in environment:
+        for key, value in environment["set"].items():
+            os.environ[key] = value
+            # print(
+            #     "Setting environment variable "
+            #     + Fore.GREEN
+            #     + f"{key}"
+            #     + Style.RESET_ALL
+            #     + " to "
+            #     + Fore.GREEN
+            #     + f"{value}"
+            #     + Style.RESET_ALL
+            # )
+
+    # Map existing environment variables to new keys if 'map' key is present
+    if "map" in environment:
+        for key, value in environment["map"].items():
+            mapped_value = os.getenv(value)
+            os.environ[key] = mapped_value
+            # print(
+            #     "Mapping environment variable "
+            #     + Fore.YELLOW
+            #     + f"{key}"
+            #     + Style.RESET_ALL
+            #     + " (from "
+            #     + Fore.YELLOW
+            #     + f"{value}"
+            #     + Style.RESET_ALL
+            #     + ")"
+            # )

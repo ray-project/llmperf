@@ -28,6 +28,7 @@ from transformers import LlamaTokenizerFast
 
 def get_token_throughput_latencies(
     model: str,
+    provider: str,
     mean_input_tokens: int,
     stddev_input_tokens: int,
     mean_output_tokens: int,
@@ -36,6 +37,7 @@ def get_token_throughput_latencies(
     num_concurrent_requests: int = 1,
     max_num_completed_requests: int = 500,
     test_timeout_s=90,
+    base_url: str = None,
     llm_api="openai",
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Get the token throughput and latencies for the given model.
@@ -93,6 +95,7 @@ def get_token_throughput_latencies(
         default_sampling_params = {"max_tokens": num_output_tokens}
         default_sampling_params.update(additional_sampling_params)
         request_config = RequestConfig(
+            provider=provider,
             model=model,
             prompt=prompt,
             sampling_params=default_sampling_params,

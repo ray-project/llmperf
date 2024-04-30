@@ -10,6 +10,7 @@ from transformers import LlamaTokenizerFast
 from llmperf.ray_llm_client import LLMClient
 from llmperf.models import RequestConfig
 from llmperf import common_metrics
+from llmperf.utils import build_providers, setup_environment_variables
 
 
 @ray.remote
@@ -24,6 +25,10 @@ class VertexAIClient(LLMClient):
         )
 
     def llm_request(self, request_config: RequestConfig) -> Dict[str, Any]:
+        providers = build_providers(request_config.base_url)
+
+        setup_environment_variables(providers[request_config.provider])
+
         project_id = os.environ.get("GCLOUD_PROJECT_ID")
         region = os.environ.get("GCLOUD_REGION")
         endpoint_id = os.environ.get("VERTEXAI_ENDPOINT_ID")

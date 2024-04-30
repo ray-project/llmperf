@@ -14,7 +14,9 @@ class RequestConfig(BaseModel):
         metadata: Additional metadata to attach to the request for logging or validation purposes.
     """
 
+    provider: str
     model: str
+    base_url: str = None
     prompt: Tuple[str, int]
     sampling_params: Optional[Dict[str, Any]] = None
     llm_api: Optional[str] = None

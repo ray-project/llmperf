@@ -8,6 +8,7 @@ import requests
 
 from llmperf.ray_llm_client import LLMClient
 from llmperf.models import RequestConfig
+from llmperf.utils import setup_environment_variables, build_providers
 from llmperf import common_metrics
 
 
@@ -16,6 +17,10 @@ class OpenAIChatCompletionsClient(LLMClient):
     """Client for OpenAI Chat Completions API."""
 
     def llm_request(self, request_config: RequestConfig) -> Dict[str, Any]:
+        providers = build_providers(request_config.base_url)
+
+        setup_environment_variables(providers[request_config.provider]["environment"])
+
         prompt = request_config.prompt
         prompt, prompt_len = prompt
 
@@ -87,7 +92,7 @@ class OpenAIChatCompletionsClient(LLMClient):
                         error_msg = data["error"]["message"]
                         error_response_code = data["error"]["code"]
                         raise RuntimeError(data["error"]["message"])
-                    
+
                     if "choices" in data and data["choices"]:
                         delta = data["choices"][0].get("delta")
                         if not delta:
@@ -113,7 +118,9 @@ class OpenAIChatCompletionsClient(LLMClient):
             print(f"Warning Or Error: {e}")
             print(error_response_code)
 
-        metrics[common_metrics.INTER_TOKEN_LAT] = sum(time_to_next_token) #This should be same as metrics[common_metrics.E2E_LAT]. Leave it here for now
+        metrics[common_metrics.INTER_TOKEN_LAT] = sum(
+            time_to_next_token
+        )  # This should be same as metrics[common_metrics.E2E_LAT]. Leave it here for now
         metrics[common_metrics.TTFT] = ttft
         metrics[common_metrics.E2E_LAT] = total_request_time
         metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = output_throughput
