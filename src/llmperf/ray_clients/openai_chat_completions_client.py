@@ -19,7 +19,10 @@ class OpenAIChatCompletionsClient(LLMClient):
     def llm_request(self, request_config: RequestConfig) -> Dict[str, Any]:
         providers = build_providers(request_config.base_url)
 
-        setup_environment_variables(providers[request_config.provider]["environment"])
+        if "environment" in providers[request_config.provider]:
+            setup_environment_variables(
+                providers[request_config.provider]["environment"]
+            )
 
         prompt = request_config.prompt
         prompt, prompt_len = prompt

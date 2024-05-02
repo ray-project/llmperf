@@ -99,6 +99,7 @@ def get_token_throughput_latencies(
             model=model,
             prompt=prompt,
             sampling_params=default_sampling_params,
+            base_url=base_url,
             llm_api=llm_api,
         )
         req_launcher.launch_requests(request_config)

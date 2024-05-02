@@ -27,7 +27,7 @@ class VertexAIClient(LLMClient):
     def llm_request(self, request_config: RequestConfig) -> Dict[str, Any]:
         providers = build_providers(request_config.base_url)
 
-        setup_environment_variables(providers[request_config.provider])
+        setup_environment_variables(providers[request_config.provider]["environment"])
 
         project_id = os.environ.get("GCLOUD_PROJECT_ID")
         region = os.environ.get("GCLOUD_REGION")

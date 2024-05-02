@@ -19,7 +19,12 @@ class LiteLLMClient(LLMClient):
 
         providers = build_providers(request_config.base_url)
 
-        setup_environment_variables(providers[request_config.provider])
+        if "environment" in providers[request_config.provider]:
+            setup_environment_variables(
+                providers[request_config.provider]["environment"]
+            )
+
+        request_config.model = request_config.model.replace("azure-openai", "azure")
 
         prompt = request_config.prompt
         prompt, prompt_len = prompt
@@ -46,6 +51,7 @@ class LiteLLMClient(LLMClient):
             "messages": message,
             "stream": True,
         }
+
         sampling_params = request_config.sampling_params
         body.update(sampling_params or {})
 

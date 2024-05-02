@@ -65,6 +65,25 @@ def build_providers(base_url: str | None) -> dict:
                 "map": {"OPENAI_API_KEY": "AZURE_API_KEY"},
             }
         },
+        "azure-openai": {
+            "environment": {
+                "set": {
+                    "AZURE_API_BASE": base_url,
+                    "AZURE_API_VERSION": "2024-02-15-preview",
+                },
+                "map": {
+                    "AZURE_API_KEY": (
+                        "AZURE_CANADA_EAST_OPENAI_KEY"
+                        if base_url and "canada-east" in base_url
+                        else (
+                            "AZURE_NORTH_CENTRAL_US_OPENAI_KEY"
+                            if base_url and "north-central" in base_url
+                            else "AZURE_WEST_US_OPENAI_KEY"
+                        )
+                    ),
+                },
+            }
+        },
         "cloudflare-workers": {},
     }
 

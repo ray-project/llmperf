@@ -16,7 +16,7 @@ class RequestConfig(BaseModel):
 
     provider: str
     model: str
-    base_url: str = None
+    base_url: Optional[str] = None
     prompt: Tuple[str, int]
     sampling_params: Optional[Dict[str, Any]] = None
     llm_api: Optional[str] = None
