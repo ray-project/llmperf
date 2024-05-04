@@ -1,21 +1,42 @@
 # LLMPerf
 
-A Tool for evaulation the performance of LLM APIs.
+A Tool for evaluqting the performance of GPU chips for LLMs.
 
 # Installation
 ```bash
-git clone https://github.com/ray-project/llmperf.git
-cd llmperf
-pip install -e .
+git clone https://github.com/ori-edge/BeFOri.git
+cd ./ori-llmperf 
+python3 -m build 
+pip install -r requirements.txt
+export PYTHONPATH="/PATH/TO/ori-llmperf/src/"
+
 ```
 
 # Basic Usage
 
-We implement 2 tests for evaluating LLMs: a load test to check for performance and a correctness test to check for correctness.
+We implemented a load test to check for performance and measure 4 metrics:
+- Time to First Token (TTFT)
+- Inter-Token Latency (ITL)
+- End-to-End Latency (EL)
+- Token Throughput (TT) 
+
+There is also a basic correctness test to check for LLMs, although a more robust framework if recommended for in depth results.
+
+You can pass in the following parameters through the CLI:
+- model: The model to use for this load test.
+- mean-input-tokens: The mean number of tokens to send in the prompt for the request.
+- stddev-input-tokens: The standard deviation of number of tokens to send in the prompt for the request.
+- mean-output-tokens: The mean number of tokens to generate from each llm request. This is passed into the LLM as the max_tokens param. Note that this is not always the number of tokens returned.
+- stddev-output-tokens: The stdandard deviation on the number of tokens to request per llm request.
+- num-concurrent-requests: The number of concurrent requests to send
+- timeout: The amount of time to run the load test before killing the process.
+- max-num-completed-requests: The number of requests to complete before finishing the test. Note that its possible for the test to timeout first.
+
+You can refer to `python token_benchmark_ray.py --help` for these details on the arguments in the future.
 
 ## Load test
 
-The load test spawns a number of concurrent requests to the LLM API and measures the inter-token latency and generation throughput per request and across concurrent requests. The prompt that is sent with each request is of the format:
+The load test spawns a number of concurrent requests to the LLM and measure the benchmarks across concurrent requests. The prompt that is sent with each request is of the format:
 
 ```
 Randomly stream lines from the following text. Don't generate eos tokens:
@@ -27,11 +48,31 @@ LINE 3,
 
 Where the lines are randomly sampled from a collection of lines from Shakespeare sonnets. Tokens are counted using the `LlamaTokenizer` regardless of which LLM API is being tested. This is to ensure that the prompts are consistent across different LLM APIs.
 
-To run the most basic load test you can the token_benchmark_ray script.
+To run the  load test you can the token_benchmark_ray script with the command line arguments above (see example below).
 
+## Self Hosted Models
+The framework has been tested with Llama2-7B-chat and Llama3-8B which have been implemented through the HuggingFace transformers library. Th
 
-### Caveats and Disclaimers
+**Tip**: Make sure you request [Llama2](https://huggingface.co/collections/meta-llama/llama-2-family-661da1f90a9d678b6f55773b) and/or [Llama3](https://huggingface.co/collections/meta-llama/meta-llama-3-66214712577ca38149ebb2b6) access on HuggingFace first, wait for the approval, and replace the environment variable below with your HuggingFace Access Token.
 
+```bash
+export HF_ACCESS_TOKEN="XXXXXXXXXXXXXX" 
+python3 token_benchmark_ray.py \
+--model "meta-llama/Meta-Llama-3-8B" \
+--mean-input-tokens 64 \
+--stddev-input-tokens 8 \ 
+--mean-output-tokens 128 \
+--stddev-output-tokens 8 \
+--max-num-completed-requests 2 \
+--timeout 600 \
+--num-concurrent-requests 1 \
+--results-dir "result_outputs" \
+--llm-api transformers-lib
+```
+
+## API Providers
+### Caveats and Disclaimers for API Provider
+Please note, when using the framework to benchmark API providers, the following should be considered (these do not apply to self hosted models):
 - The endpoints provider backend might vary widely, so this is not a reflection on how the software runs on a particular hardware.
 - The results may vary with time of day.
 - The results may vary with the load.
@@ -193,11 +234,10 @@ python llm_correctness.py \
 
 ```
 
-see `python token_benchmark_ray.py --help` for more details on the arguments.
 
 ## Correctness Test
 
-The correctness test spawns a number of concurrent requests to the LLM API with the following format:
+The correctness test spawns a number of concurrent requests to the LLM  with the following format:
 
 ```
 Convert the following sequence of words into a number: {random_number_in_word_format}. Output just your final answer.
@@ -387,7 +427,8 @@ print(result)
 
 # Implementing New LLM Clients
 
-To implement a new LLM client, you need to implement the base class `llmperf.ray_llm_client.LLMClient` and decorate it as a ray actor.
+To implement a new LLM client, you need to implement the base class `llmperf.ray_llm_client.LLMClient` in `ori-llmperf/src/llmperf/ray_clients` and decorate it as a ray actor.
+You also need to update the file `ori-llmperf/src/llmperf/common.py` with the new class.
 
 ```python
 
@@ -411,5 +452,5 @@ class CustomLLMClient(LLMClient):
 
 ```
 
-# Legacy Codebase
-The old LLMPerf code base can be found in the [llmperf-legacy](https://github.com/ray-project/llmval-legacy) repo.
+# Acknowledgements
+This repo was forked off of [llmperf](https://github.com/ray-project/llmperf), thank you to the developers from AnyScale.

@@ -11,8 +11,8 @@ from llmperf import common_metrics
 
 
 @ray.remote
-class LlamaLLMClient(LLMClient):
-    """Client for Llama2 Chat Completions"""
+class TransformersLibClient(LLMClient):
+    """Client for self-hosted models via the transformers library from HuggingFace for Chat Completions"""
 
     def __init__(self):
         self.access_token = os.environ.get("HF_ACCESS_TOKEN")

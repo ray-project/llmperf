@@ -402,7 +402,7 @@ args.add_argument(
     "--timeout",
     type=int,
     default=90,
-    help="The amount of time to run the load test for. (default: %(default)s)",
+    help="The amount of time to run the load test before killing the process. (default: %(default)s)",
 )
 args.add_argument(
     "--max-num-completed-requests",
