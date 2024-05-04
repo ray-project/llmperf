@@ -5,7 +5,7 @@ A Tool for evaluqting the performance of GPU chips for LLMs.
 # Installation
 ```bash
 git clone https://github.com/ori-edge/BeFOri.git
-cd ./ori-llmperf 
+cd ./BeFOri
 python3 -m build 
 pip install -r requirements.txt
 export PYTHONPATH="/PATH/TO/ori-llmperf/src/"
