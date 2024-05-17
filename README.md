@@ -159,10 +159,10 @@ First we need to start TGI:
 ```bash
 model=meta-llama/Meta-Llama-3-8B-Instruct
 token=$(cat ~/.cache/huggingface/token)
-num_shard=2
+num_shard=1
 max_input_length=5000
 max_total_tokens=6000
-max_batch_prefill_tokens=10000
+max_batch_prefill_tokens=6144
 docker run --gpus $num_shard -ti -p 8080:80 \
   -e MODEL_ID=$model \
   -e HF_TOKEN=$token \
@@ -211,17 +211,26 @@ Avg. Thorughput: 163.23 tokens/sec
 Avg. Latency: 38.22ms/token
 ```
 
-Results on a 4x A10G GPU with (max_batch_prefill_tokens=16182)
+Results on a 1x H100 GPU with (max_batch_prefill_tokens=16182)
 
 ```bash
-Avg. Input token length: 550
-Avg. Output token length: 150
-Avg. First-Time-To-Token: 375.99ms
-Avg. Thorughput: 163.23 tokens/sec
-Avg. Latency: 38.22ms/token
 ```
 
 
 ### Speculative Test
 
 ```bash
+model=ibm-fms/llama3-8b-accelerator
+token=$(cat ~/.cache/huggingface/token)
+num_shard=1
+max_input_length=5000
+max_total_tokens=6000
+max_batch_prefill_tokens=6144
+docker run --gpus $num_shard -ti -p 8080:80 \
+  -e MODEL_ID=$model \
+  -e HF_TOKEN=$token \
+  -e NUM_SHARD=$num_shard \
+  -e MAX_INPUT_LENGTH=$max_input_length \
+  -e MAX_TOTAL_TOKENS=$max_total_tokens \
+  -e MAX_BATCH_PREFILL_TOKENS=$max_batch_prefill_tokens \
+  ghcr.io/huggingface/text-generation-inference:2.0.3
