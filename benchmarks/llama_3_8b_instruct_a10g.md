@@ -33,8 +33,7 @@ Hugging Face TGI maintained high throughput, like 304.38 tokens/sec at concurren
 TGI's performance metrics evolved noticeably. At 1 concurrent user, TGI had a first time to token of 138.91 ms and throughput of 32.79 tokens/sec. At 64 users, TGI's first time to token ( 2371.58 ms) is dramatically higher compared to vLLM (1080.42 ms) and NVIDIA NIM (1814.53 ms)
 
 Despite this increase, TGI managed to keep a high throughput (304.38 tokens/sec) compared to vLLM's 301.19 tokens/sec and NVIDIA NIM's 310.85 tokens/sec. TGI's inter-token latency is also stays competitive, though it is still outperformed by NVIDIA NIM, especially at 64 users where TGI had 60.59 ms/token compared to NVIDIA NIM's 52.95 ms/token.
-As concurrency increased from 1 to 64 users, TGI's inter-token latency remains close but slightly better to vLLM, being 2.57% faster at 1 user and 1.84% faster at 64 users.
-
+As concurrency increased from 1 to 64 users, TGI's and vLLMs inter-token latency remains close to each other from vLLM being ~1.12% faster at 32 users and TGI being ~2.57% faster at 1 users.
 
 
 ### Concurrency User 1 
