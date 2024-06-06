@@ -7,6 +7,7 @@ import re
 import time
 import random
 from typing import Any, Dict, List, Optional, Tuple
+import yaml
 
 import pandas as pd
 import ray
@@ -24,6 +25,7 @@ from llmperf.utils import (
 from tqdm import tqdm
 
 from transformers import LlamaTokenizerFast
+from yaml import FullLoader
 
 
 def get_token_throughput_latencies(
@@ -317,7 +319,7 @@ def run_token_benchmark(
     )
 
     if results_dir:
-        filename = f"{model}_{mean_input_tokens}_{mean_output_tokens}"
+        filename = f"{model}_{mean_input_tokens}_{mean_output_tokens}_{num_concurrent_requests}"
         filename = re.sub(r"[^\w\d-]+", "-", filename)
         filename = re.sub(r"-{2,}", "-", filename)
         summary_filename = f"{filename}_summary"
@@ -352,13 +354,10 @@ args = argparse.ArgumentParser(
     description="Run a token throughput and latency benchmark."
 )
 
-args.add_argument(
-    "--model", type=str, required=True, help="The model to use for this load test."
-)
+args.add_argument("--model", type=str, help="The model to use for this load test.")
 args.add_argument(
     "--mean-input-tokens",
     type=int,
-    default=550,
     help=(
         "The mean number of tokens to send in the prompt for the request. "
         " (default: %(default)s)"
@@ -367,7 +366,6 @@ args.add_argument(
 args.add_argument(
     "--stddev-input-tokens",
     type=int,
-    default=150,
     help=(
         "The standard deviation of number of tokens to send in the prompt for the request. "
         "(default: %(default)s)"
@@ -376,7 +374,6 @@ args.add_argument(
 args.add_argument(
     "--mean-output-tokens",
     type=int,
-    default=150,
     help=(
         "The mean number of tokens to generate from each llm request. This is the max_tokens param "
         "for the completions API. Note that this is not always the number of tokens returned. "
@@ -386,7 +383,6 @@ args.add_argument(
 args.add_argument(
     "--stddev-output-tokens",
     type=int,
-    default=80,
     help=(
         "The stdandard deviation on the number of tokens to generate per llm request. "
         "(default: %(default)s)"
@@ -395,19 +391,16 @@ args.add_argument(
 args.add_argument(
     "--num-concurrent-requests",
     type=int,
-    default=10,
     help=("The number of concurrent requests to send (default: %(default)s)"),
 )
 args.add_argument(
     "--timeout",
     type=int,
-    default=90,
     help="The amount of time to run the load test before killing the process. (default: %(default)s)",
 )
 args.add_argument(
     "--max-num-completed-requests",
     type=int,
-    default=10,
     help=(
         "The number of requests to complete before finishing the test. Note "
         "that its possible for the test to timeout first. (default: %(default)s)"
@@ -416,7 +409,6 @@ args.add_argument(
 args.add_argument(
     "--additional-sampling-params",
     type=str,
-    default="{}",
     help=(
         "Additional sampling params to send with the each request to the LLM API. "
         "(default: %(default)s) No additional sampling params are sent."
@@ -425,7 +417,6 @@ args.add_argument(
 args.add_argument(
     "--results-dir",
     type=str,
-    default="",
     help=(
         "The directory to save the results to. "
         "(`default: %(default)s`) No results are saved)"
@@ -434,7 +425,6 @@ args.add_argument(
 args.add_argument(
     "--llm-api",
     type=str,
-    default="openai",
     help=(
         f"The name of the llm api to use. Can select from {SUPPORTED_APIS}"
         " (default: %(default)s)"
@@ -443,11 +433,16 @@ args.add_argument(
 args.add_argument(
     "--metadata",
     type=str,
-    default="",
     help=(
         "A comma separated list of metadata to include in the results, e.g. "
         "name=foo,bar=1. These will be added to the metadata field of the results. "
     ),
+)
+args.add_argument(
+    "--batch-config-file",
+    type=str,
+    default="",
+    help=("path to a yaml file containing configurations for a batch of benchmarks. "),
 )
 
 if __name__ == "__main__":
@@ -461,18 +456,48 @@ if __name__ == "__main__":
         for item in args.metadata.split(","):
             key, value = item.split("=")
             user_metadata[key] = value
+    user_metadata = json.dumps(user_metadata)
 
-    run_token_benchmark(
-        llm_api=args.llm_api,
-        model=args.model,
-        test_timeout_s=args.timeout,
-        max_num_completed_requests=args.max_num_completed_requests,
-        mean_input_tokens=args.mean_input_tokens,
-        stddev_input_tokens=args.stddev_input_tokens,
-        mean_output_tokens=args.mean_output_tokens,
-        stddev_output_tokens=args.stddev_output_tokens,
-        num_concurrent_requests=args.num_concurrent_requests,
-        additional_sampling_params=args.additional_sampling_params,
-        results_dir=args.results_dir,
-        user_metadata=user_metadata,
-    )
+    config = []
+    if args.batch_config_file != "":
+        with open(args.batch_config_file) as f:
+            config = yaml.load(f, Loader=FullLoader)
+
+    else:
+        config.append(
+            dict(
+                llm_api=args.llm_api,
+                model=args.model,
+                test_timeout_s=args.timeout,
+                max_num_completed_requests=args.max_num_completed_requests,
+                mean_input_tokens=args.mean_input_tokens,
+                stddev_input_tokens=args.stddev_input_tokens,
+                mean_output_tokens=args.mean_output_tokens,
+                stddev_output_tokens=args.stddev_output_tokens,
+                num_concurrent_requests=args.num_concurrent_requests,
+                additional_sampling_params=args.additional_sampling_params,
+                results_dir=args.results_dir,
+                user_metadata=user_metadata,
+            )
+        )
+
+    parameter_defaults = {
+        "llm_api": "transformers-lib",
+        "test_timeout_s": 90,
+        "max_num_completed_requests": 10,
+        "mean_input_tokens": 550,
+        "stddev_input_tokens": 150,
+        "mean_output_tokens": 150,
+        "stddev_output_tokens": 80,
+        "num_concurrent_requests": 10,
+        "additional_sampling_params": "{}",
+        "results_dir": "",
+        "user_metadata": user_metadata,
+    }
+
+    for conf in config:
+        for key in parameter_defaults.keys():
+            if key not in conf:
+                conf[key] = parameter_defaults[key]
+        print(f"Running new benchmark \n {conf}")
+        run_token_benchmark(**conf)

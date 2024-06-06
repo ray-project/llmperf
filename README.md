@@ -32,6 +32,8 @@ You can pass in the following parameters through the CLI:
 - timeout: The amount of time to run the load test before killing the process.
 - max-num-completed-requests: The number of requests to complete before finishing the test. Note that its possible for the test to timeout first.
 
+Alternatively, you can pass in a config file containing a list of configurations to run one after the other. A sample of the file formatting is available at `BeFOri/src/samle_batch.yaml`
+
 You can refer to `python token_benchmark_ray.py --help` for these details on the arguments in the future.
 
 ## Load test
