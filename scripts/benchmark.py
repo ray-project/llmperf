@@ -28,7 +28,7 @@ def benchmark(config):
         print(f"Running test with concurrency: {concurrency}")
         os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
         os.environ["OPENAI_API_KEY"] = "none"
-        output_dir = f"result_outputs_{concurrency}"
+        output_dir = f'result_{config.model_id.replace("/","_")}_{concurrency}'
         cmd = [
             "python",
             script_file_path,
@@ -62,15 +62,36 @@ def benchmark(config):
             "concurrency": concurrency,
             "mean_input_token_length": data["results_number_input_tokens_mean"],
             "mean_output_token_length": data["results_number_output_tokens_mean"],
-            "first-time-to-token_mean_in_ms_(ttft)": data["results_ttft_s_mean"] * 1000,
-            "throughput_token_per_s_(token/sec)": data[
-                "results_mean_output_throughput_token_per_s"
+            "time_to_first_token_in_ms_(ttft)_p50": data["results_ttft_s_quantiles_p50"]
+            * 1000,
+            "time_to_first_token_in_ms_(ttft)_p75": data["results_ttft_s_quantiles_p75"]
+            * 1000,
+            "time_to_first_token_in_ms_(ttft)_p95": data["results_ttft_s_quantiles_p95"]
+            * 1000,
+            "throughput_token_per_s_(token/sec)_p50": data[
+                "results_request_output_throughput_token_per_s_quantiles_p50"
             ],
-            "latency_ms_per_token_(inter_token_latency)": data[
-                "results_inter_token_latency_s_mean"
+            "throughput_token_per_s_(token/sec)_p75": data[
+                "results_request_output_throughput_token_per_s_quantiles_p75"
+            ],
+            "throughput_token_per_s_(token/sec)_p95": data[
+                "results_request_output_throughput_token_per_s_quantiles_p95"
+            ],
+            "latency_ms_per_token_(inter_token_latency)_p50": data[
+                "results_inter_token_latency_s_quantiles_p50"
+            ]
+            * 1000,
+            "latency_ms_per_token_(inter_token_latency)_p75": data[
+                "results_inter_token_latency_s_quantiles_p75"
+            ]
+            * 1000,
+            "latency_ms_per_token_(inter_token_latency)_p95": data[
+                "results_inter_token_latency_s_quantiles_p95"
             ]
             * 1000,
             "requests_per_minute_(qpm)": data["results_num_completed_requests_per_min"],
+            "results_number_errors": data["results_number_errors"],
+            "results_num_completed_requests": data["results_num_completed_requests"],
         }
         # append results
         results[concurrency] = data
@@ -80,7 +101,7 @@ def benchmark(config):
         ) as file:
             json.dump(detailed_results[concurrency], file, indent=2)
         # remove the output directory
-        subprocess.run(["rm", "-rf", output_dir])
+        # subprocess.run(["rm", "-rf", output_dir])
     return results, detailed_results
 
 

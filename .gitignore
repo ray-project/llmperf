@@ -240,8 +240,6 @@ dist/
 
 # results
 output/
-*.json
-result_outputs/
 
 __pycache__
 **/__pycache__/
