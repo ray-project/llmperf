@@ -146,9 +146,9 @@ def main():
     results, detailed_results = benchmark(config)
     # print the results in a nice markdown table using pandas
     df = pd.DataFrame(detailed_results)
-    print(df.to_markdown())
-    # write to csv
     df.to_csv(f"{config.model_id.replace('/','_')}.csv")
+    # write to csv
+    print(df.to_markdown())
 
 
 if __name__ == "__main__":

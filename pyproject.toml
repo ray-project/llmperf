@@ -23,4 +23,5 @@ dependencies = [
   "boto3",
   "google-cloud-aiplatform",
   "pandas",
+  "tabulate"
 ]
