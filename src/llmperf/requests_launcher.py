@@ -40,6 +40,7 @@ class RequestsLauncher:
         if not block:
             while self._llm_client_pool.has_next():
                 results.append(self._llm_client_pool.get_next_unordered())
+                return results
         else:
             while not self._llm_client_pool.has_next():
                 pass
