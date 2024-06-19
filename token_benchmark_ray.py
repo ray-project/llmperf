@@ -71,6 +71,21 @@ def get_token_throughput_latencies(
     req_launcher = RequestsLauncher(clients)
     completed_requests = []
     num_completed_requests = 0
+    # make up prompts outside of send loop for faster benchmarking loop
+    num_output_tokens_list = []
+    prompts = []
+    for i in range(max_num_completed_requests):
+        num_output_tokens = (sample_random_positive_int(
+            mean_output_tokens, stddev_output_tokens
+        ))
+        num_output_tokens_list.append(num_output_tokens)
+
+        prompts.append(randomly_sample_sonnet_lines_prompt(
+            prompt_tokens_mean=mean_input_tokens,
+            prompt_tokens_stddev=stddev_input_tokens,
+            expect_output_tokens=num_output_tokens,
+            tokenizer=tokenizer
+        ))
     start_time = time.monotonic()
     iter = 0
     pbar = tqdm(total=max_num_completed_requests)
@@ -79,21 +94,12 @@ def get_token_throughput_latencies(
         and len(completed_requests) < max_num_completed_requests
     ):
         iter += 1
-        num_output_tokens = sample_random_positive_int(
-            mean_output_tokens, stddev_output_tokens
-        )
 
-        prompt = randomly_sample_sonnet_lines_prompt(
-            prompt_tokens_mean=mean_input_tokens,
-            prompt_tokens_stddev=stddev_input_tokens,
-            expect_output_tokens=num_output_tokens,
-        )
-
-        default_sampling_params = {"max_tokens": num_output_tokens}
+        default_sampling_params = {"max_tokens": num_output_tokens_list.pop()}
         default_sampling_params.update(additional_sampling_params)
         request_config = RequestConfig(
             model=model,
-            prompt=prompt,
+            prompt=prompts.pop(),
             sampling_params=default_sampling_params,
             llm_api=llm_api,
         )
