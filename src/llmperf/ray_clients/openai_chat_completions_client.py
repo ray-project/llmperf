@@ -59,6 +59,12 @@ class OpenAIChatCompletionsClient(LLMClient):
         if not address.endswith("/"):
             address = address + "/"
         address += "chat/completions"
+        if "azure"in address:
+            api_version = os.environ.get("OPENAI_API_VERSION")
+            if not api_version:
+                raise ValueError("the environment variable OPENAI_API_VERSION must be set for Azure OpenAI service.")
+            address = f"{address}?api-version={api_version}"
+            headers = {"api-key": key}  # replace with Authorization: Bearer
         try:
             with requests.post(
                 address,
