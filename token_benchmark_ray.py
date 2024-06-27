@@ -34,6 +34,7 @@ def get_token_throughput_latencies(
     stddev_input_tokens: int,
     mean_output_tokens: int,
     stddev_output_tokens: int,
+    attn_implementation: str,
     additional_sampling_params: Optional[Dict[str, Any]] = None,
     num_concurrent_requests: int = 1,
     max_num_completed_requests: int = 500,
@@ -99,6 +100,7 @@ def get_token_throughput_latencies(
             prompt=prompt,
             sampling_params=default_sampling_params,
             llm_api=llm_api,
+            attn_implementation=attn_implementation,
         )
         req_launcher.launch_requests(request_config)
         # Retrieving results less frequently allows for more concurrent requests
@@ -281,6 +283,7 @@ def run_token_benchmark(
     additional_sampling_params: str,
     results_dir: str,
     user_metadata: Dict[str, Any],
+    attn_implementation: str,
 ):
     """
     Args:
@@ -316,6 +319,7 @@ def run_token_benchmark(
         stddev_output_tokens=stddev_output_tokens,
         num_concurrent_requests=num_concurrent_requests,
         additional_sampling_params=json.loads(additional_sampling_params),
+        attn_implementation=attn_implementation,
     )
 
     if results_dir:
@@ -409,6 +413,7 @@ args.add_argument(
 args.add_argument(
     "--additional-sampling-params",
     type=str,
+    default="{}",
     help=(
         "Additional sampling params to send with the each request to the LLM API. "
         "(default: %(default)s) No additional sampling params are sent."
@@ -439,6 +444,13 @@ args.add_argument(
     ),
 )
 args.add_argument(
+    "--attn-implementation",
+    type=str,
+    help=(
+        "attention implementation for models using the transformers lib, (e.g. flash_attention_2. "
+    ),
+)
+args.add_argument(
     "--batch-config-file",
     type=str,
     default="",
@@ -456,7 +468,6 @@ if __name__ == "__main__":
         for item in args.metadata.split(","):
             key, value = item.split("=")
             user_metadata[key] = value
-    user_metadata = json.dumps(user_metadata)
 
     config = []
     if args.batch_config_file != "":
@@ -478,6 +489,7 @@ if __name__ == "__main__":
                 additional_sampling_params=args.additional_sampling_params,
                 results_dir=args.results_dir,
                 user_metadata=user_metadata,
+                attn_implementation=args.attn_implementation,
             )
         )
 
@@ -493,6 +505,7 @@ if __name__ == "__main__":
         "additional_sampling_params": "{}",
         "results_dir": "",
         "user_metadata": user_metadata,
+        "attn_implementation": "",
     }
 
     for conf in config:

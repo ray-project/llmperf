@@ -1,6 +1,8 @@
+accelerate==0.30.1
 awscli==1.32.88
 boto3==1.34.88
 google-cloud-aiplatform==1.48.0
+hf_transfer==0.1.6
 litellm==1.35.18
 num2words==0.5.13
 pandas==2.2.2

@@ -19,3 +19,4 @@ class RequestConfig(BaseModel):
     sampling_params: Optional[Dict[str, Any]] = None
     llm_api: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    attn_implementation: Optional[str] = None
