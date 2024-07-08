@@ -1,4 +1,4 @@
-# LLMPerf
+# BeFOri
 
 A Tool for evaluqting the performance of GPU chips for LLMs.
 
