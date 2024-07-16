@@ -114,14 +114,16 @@ def get_token_throughput_latencies(
             all_metrics = []
             for out in outs:
                 request_metrics, gen_text, _ = out
-
+                num_output_tokens = get_token_length(gen_text)
                 with completed_requests_lock:
                     if num_completed_requests < max_num_completed_requests:
                         if num_output_tokens:
                             request_metrics[common_metrics.INTER_TOKEN_LAT] /= request_metrics[common_metrics.NUM_OUTPUT_TOKENS]
                         else:
                             request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
+                        request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
                         request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
+                        request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
                         all_metrics.append(request_metrics)
                         completed_requests.extend(all_metrics)
                         pbar.update(len(all_metrics))
@@ -158,6 +160,7 @@ def get_token_throughput_latencies(
                     request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
                 request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
                 request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
+                request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
                 completed_requests.extend(request_metrics)
 
     print(f"\Results for token benchmark for {model} queried with the {llm_api} api.\n")
