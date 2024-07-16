@@ -101,6 +101,7 @@ def get_token_throughput_latencies(
             model=model,
             prompt=prompts.pop(),
             sampling_params=default_sampling_params,
+            sample_time=time.monotonic() - start_time,
             llm_api=llm_api,
         )
         req_launcher.launch_requests(request_config)
@@ -111,7 +112,7 @@ def get_token_throughput_latencies(
             outs = req_launcher.get_next_ready()
             all_metrics = []
             for out in outs:
-                request_metrics, gen_text, _ = out
+                request_metrics, gen_text, req_config = out
                 num_output_tokens = get_token_length(gen_text)
                 if num_output_tokens: 
                     request_metrics[common_metrics.INTER_TOKEN_LAT] /= num_output_tokens
@@ -120,6 +121,7 @@ def get_token_throughput_latencies(
                 request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
                 request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
                 request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
+                request_config[common_metrics.REQ_START_TIME] = req_config.sample_time
                 all_metrics.append(request_metrics)
             completed_requests.extend(all_metrics)
         pbar.update(len(completed_requests) - num_completed_requests)
