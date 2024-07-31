@@ -92,6 +92,7 @@ def get_token_throughput_latencies(
     while (
         time.monotonic() - start_time < test_timeout_s
         and len(completed_requests) < max_num_completed_requests
+        # https://github.com/vllm-project/vllm/issues/2484
         and len(num_output_tokens_list) > 0  # happens when requests are aborted
     ):
         iter += 1
