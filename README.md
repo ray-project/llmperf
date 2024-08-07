@@ -1,6 +1,6 @@
 # LLMPerf
 
-A Tool for evaulation the performance of LLM APIs.
+LLMPerf is a tool for evaulation the performance of LLM APIs.
 
 # Installation
 ```bash
