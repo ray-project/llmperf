@@ -42,10 +42,11 @@ def send_req(request_config: RequestConfig) -> Dict[str, Any]:
     metrics = {}
     metrics[common_metrics.ERROR_CODE] = None
     metrics[common_metrics.ERROR_MSG] = ""
-
+    text_input = f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
+    
     try:
         data = {
-            "text_input": prompt,
+            "text_input": text_input,
             "max_tokens": request_config.sampling_params.get("max_new_tokens", 2048)
         }
 
