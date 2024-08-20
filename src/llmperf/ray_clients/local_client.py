@@ -43,7 +43,7 @@ def send_req(request_config: RequestConfig) -> Dict[str, Any]:
     metrics[common_metrics.ERROR_CODE] = None
     metrics[common_metrics.ERROR_MSG] = ""
     text_input = f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
-    
+
     try:
         data = {
             "text_input": text_input,
@@ -58,7 +58,10 @@ def send_req(request_config: RequestConfig) -> Dict[str, Any]:
         response.raise_for_status()
 
         # Extract the generated text and tokenize it
-        generated_text = response.text
+        response_json = response.json()
+
+        # Extract the generated text
+        generated_text = response_json['text_output']
         tokens_received = len(tokenizer.encode(generated_text))
         print("DEBUG: data", data)
         print("DEBUG: generated_text", generated_text)
