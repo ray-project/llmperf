@@ -14,7 +14,7 @@ from llmperf import common_metrics
 tokenizer = LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer")
 
 @ray.remote
-class TritonLLMClient(LLMClient):
+class LocalLLMClient(LLMClient):
     """Client for Triton"""
 
     def __init__(self):
@@ -85,7 +85,7 @@ def send_req(request_config: RequestConfig) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    client = TritonLLMClient.remote()
+    client = LocalLLMClient.remote()
     request_config_localhost = RequestConfig(
         prompt=("userHow are you?assistant", 5),
         model="localhost",
