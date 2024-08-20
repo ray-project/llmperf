@@ -113,10 +113,10 @@ def get_token_throughput_latencies(
             for out in outs:
                 request_metrics, gen_text, _ = out
                 num_output_tokens = get_token_length(gen_text)
-                if num_output_tokens: 
-                    request_metrics[common_metrics.INTER_TOKEN_LAT] /= num_output_tokens
-                else:
-                    request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
+                # if num_output_tokens: 
+                #     request_metrics[common_metrics.INTER_TOKEN_LAT] /= num_output_tokens
+                # else:
+                #     request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
                 request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
                 request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
                 request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
