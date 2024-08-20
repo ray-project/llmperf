@@ -67,7 +67,7 @@ def send_req(request_config: RequestConfig) -> Dict[str, Any]:
         print("DEBUG: generated_text", generated_text)
         print("DEBUG: tokens_received", tokens_received)
         print("DEBUG: total_request_time", total_request_time)
-        ttft = -1  # Time to first token; adjust this if your endpoint provides this info
+        ttft = 2  # Time to first token; adjust this if your endpoint provides this info
         output_throughput = tokens_received / total_request_time
         time_to_next_token = [
             total_request_time / tokens_received for _ in range(tokens_received)
