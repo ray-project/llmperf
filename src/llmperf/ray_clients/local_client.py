@@ -59,6 +59,7 @@ def send_req(request_config: RequestConfig) -> Dict[str, Any]:
         # Extract the generated text and tokenize it
         generated_text = response.text
         tokens_received = len(tokenizer.encode(generated_text))
+        print("DEBUG: data", data)
         print("DEBUG: generated_text", generated_text)
         print("DEBUG: tokens_received", tokens_received)
         print("DEBUG: total_request_time", total_request_time)
