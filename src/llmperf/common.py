@@ -10,7 +10,7 @@ from llmperf.ray_clients.power_client import PowerLLMClient
 from llmperf.ray_clients.togetherai_client import TogetherAIClient
 from llmperf.ray_clients.local_client import LocalLLMClient
 
-SUPPORTED_APIS = ["openai", "anthropic", "litellm", "power", "togetherai", "triton"]
+SUPPORTED_APIS = ["openai", "anthropic", "litellm", "power", "togetherai", "local"]
 
 
 def construct_clients(llm_api: str, num_clients: int) -> List[LLMClient]:
@@ -34,7 +34,7 @@ def construct_clients(llm_api: str, num_clients: int) -> List[LLMClient]:
         clients = [PowerLLMClient.remote() for _ in range(num_clients)]
     elif llm_api == "togetherai":
         clients = [TogetherAIClient.remote() for _ in range(num_clients)]
-    elif llm_api == "local":
+    elif llm_api == "localhost":
         clients = [LocalLLMClient.remote() for _ in range(num_clients)]
     elif llm_api in SUPPORTED_APIS:
         clients = [LiteLLMClient.remote() for _ in range(num_clients)]
