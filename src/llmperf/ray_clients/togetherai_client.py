@@ -10,8 +10,6 @@ from transformers import LlamaTokenizerFast
 from llmperf.ray_llm_client import LLMClient
 from llmperf.models import RequestConfig
 from llmperf import common_metrics
-from together import Together
-
 
 tokenizer = LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer")
 
