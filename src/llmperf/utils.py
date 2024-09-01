@@ -98,7 +98,8 @@ def randomly_sample_sonnet_lines_prompt(
             prompt_tokens_mean, prompt_tokens_stddev
         )
     remaining_prompt_tokens = num_prompt_tokens - get_token_length(prompt)
-    sonnet_path = pathlib.Path(__file__).parent.resolve() / "sonnet.txt"
+    # sonnet_path = pathlib.Path(__file__).parent.resolve() / "sonnet.txt"
+    sonnet_path = pathlib.Path(__file__).parent.resolve() / "dolly.txt"
     with open(sonnet_path, "r") as f:
         sonnet_lines = f.readlines()
     random.shuffle(sonnet_lines)
