@@ -28,9 +28,7 @@ from transformers import LlamaTokenizerFast, AutoTokenizer
 
 def get_tokenizer(model: str) -> LlamaTokenizerFast | AutoTokenizer:
     model = model.replace("huggingface/", "")
-    is_llama_model = "llama" in model
-    return LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer") \
-        if is_llama_model else AutoTokenizer.from_pretrained(model)
+    return AutoTokenizer.from_pretrained(model)
 
 
 def get_token_throughput_latencies(
