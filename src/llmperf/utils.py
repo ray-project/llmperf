@@ -57,12 +57,10 @@ def upload_to_s3(results_path: str, s3_path: str) -> None:
 
 
 def randomly_sample_sonnet_lines_prompt(
+    tokenizer,
     prompt_tokens_mean: int = 550,
     prompt_tokens_stddev: int = 250,
-    expect_output_tokens: int = 150,
-    tokenizer = LlamaTokenizerFast.from_pretrained(
-        "hf-internal-testing/llama-tokenizer")
-) -> Tuple[str, int]:
+    expect_output_tokens: int = 150) -> Tuple[str, int]:
     """Generate a prompt that randomly samples lines from a the shakespeare sonnet at sonnet.txt.
 
     Args:

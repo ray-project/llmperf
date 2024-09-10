@@ -23,7 +23,15 @@ from llmperf.utils import (
 )
 from tqdm import tqdm
 
-from transformers import LlamaTokenizerFast
+from transformers import LlamaTokenizerFast, AutoTokenizer
+
+
+def get_tokenizer(model: str) -> LlamaTokenizerFast | AutoTokenizer:
+    model = model.replace("huggingface/", "")
+    is_llama_model = "llama" in model
+    return LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer") \
+        if is_llama_model else AutoTokenizer.from_pretrained(model)
+
 
 def get_token_throughput_latencies(
     model: str,
@@ -59,9 +67,7 @@ def get_token_throughput_latencies(
     """
     random.seed(11111)
 
-    tokenizer = LlamaTokenizerFast.from_pretrained(
-        "hf-internal-testing/llama-tokenizer"
-    )
+    tokenizer = get_tokenizer(model=model)
     get_token_length = lambda text: len(tokenizer.encode(text))
 
     if not additional_sampling_params:
@@ -81,10 +87,10 @@ def get_token_throughput_latencies(
         num_output_tokens_list.append(num_output_tokens)
 
         prompts.append(randomly_sample_sonnet_lines_prompt(
+            tokenizer=tokenizer,
             prompt_tokens_mean=mean_input_tokens,
             prompt_tokens_stddev=stddev_input_tokens,
             expect_output_tokens=num_output_tokens,
-            tokenizer=tokenizer
         ))
     start_time = time.monotonic()
     iter = 0
