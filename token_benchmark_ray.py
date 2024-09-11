@@ -95,6 +95,10 @@ def get_token_throughput_latencies(
     if log_prompts:
         print("Sending the following prompts:")
         print(prompts)
+    else:
+        # 'prompts' is an array of tuples where each item is (prompt, token_length)
+        print("Sending the following prompt sizes:")
+        print(list(map(lambda prompt_with_token_count: prompt_with_token_count[1], prompts)))
 
     start_time = time.monotonic()
     iter = 0
@@ -472,7 +476,7 @@ args.add_argument(
     type=bool,
     default=False,
     help=(
-        "If True will log all prompts send to the model"
+        "If True will log all prompts sent to the model"
     ),
 )
 
