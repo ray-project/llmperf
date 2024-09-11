@@ -295,7 +295,7 @@ def run_token_benchmark(
     additional_sampling_params: str,
     results_dir: str,
     user_metadata: Dict[str, Any],
-    log_prompts: True,
+    log_prompts: bool,
 ):
     """
     Args:
