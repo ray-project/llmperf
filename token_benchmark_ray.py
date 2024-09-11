@@ -474,6 +474,7 @@ args.add_argument(
 args.add_argument(
     "--log-prompts",
     type=bool,
+    action=argparse.BooleanOptionalAction,
     default=False,
     help=(
         "If True will log all prompts sent to the model"
