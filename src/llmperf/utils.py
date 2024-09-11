@@ -107,14 +107,17 @@ def randomly_sample_sonnet_lines_prompt(
     sampling_lines = True
     while sampling_lines:
         for line in sonnet_lines:
-            trimmed_line = trim_line_optimally_if_exceeds_remaining_tokens(line, remaining_prompt_tokens, get_token_length)
-            if len(line) != len(trimmed_line):
-                sampling_lines = False
-
+            trimmed_line = trim_line_optimally_if_exceeds_remaining_tokens(line,
+                                                                           remaining_prompt_tokens,
+                                                                           get_token_length)
             prompt += trimmed_line
             remaining_prompt_tokens -= get_token_length(trimmed_line)
 
-    return prompt, num_prompt_tokens
+            if len(line) != len(trimmed_line) or remaining_prompt_tokens == 0:
+                sampling_lines = False
+                break
+
+    return prompt, (num_prompt_tokens - remaining_prompt_tokens)
 
 
 def trim_line_optimally_if_exceeds_remaining_tokens(line: str, max_tokens: int, get_token_length) -> str:
@@ -122,6 +125,7 @@ def trim_line_optimally_if_exceeds_remaining_tokens(line: str, max_tokens: int, 
         trimmed_line = line[:line_index]
         if get_token_length(trimmed_line) <= max_tokens:
             return line
+
 
 def sample_random_positive_int(mean: int, stddev: int) -> int:
     """Sample random numbers from a gaussian distribution until a positive number is sampled.
