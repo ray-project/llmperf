@@ -124,7 +124,7 @@ def trim_line_optimally_if_exceeds_remaining_tokens(line: str, max_tokens: int, 
     for line_index in reversed(range(len(line) + 1)):
         trimmed_line = line[:line_index]
         if get_token_length(trimmed_line) <= max_tokens:
-            return line
+            return trimmed_line
 
 
 def sample_random_positive_int(mean: int, stddev: int) -> int:
