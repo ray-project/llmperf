@@ -379,7 +379,7 @@ args = argparse.ArgumentParser(
 )
 
 args.add_argument(
-    "--model", type=str, required=False, help="The model to use for this load test."
+    "--model", type=str, required=True, help="The model to use for this load test."
 )
 args.add_argument(
     "--mean-input-tokens",
