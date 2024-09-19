@@ -369,13 +369,17 @@ def run_token_benchmark(
             print(individual_responses)
             raise e
 
+    error_rate = summary["results"][common_metrics.ERROR_RATE]
+    if error_rate > 50:
+        raise Exception("Over 50% of requests contain an error")
+
 
 args = argparse.ArgumentParser(
     description="Run a token throughput and latency benchmark."
 )
 
 args.add_argument(
-    "--model", type=str, required=True, help="The model to use for this load test."
+    "--model", type=str, required=False, help="The model to use for this load test."
 )
 args.add_argument(
     "--mean-input-tokens",
