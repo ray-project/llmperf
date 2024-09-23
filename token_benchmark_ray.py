@@ -529,6 +529,6 @@ if __name__ == "__main__":
         additional_sampling_params=args.additional_sampling_params,
         results_dir=args.results_dir,
         user_metadata=user_metadata,
-        log_prompts=args.log_prompt,
+        log_prompts=args.log_prompts,
         max_num_errors_allowed=args.max_num_errors_allowed,
     )
