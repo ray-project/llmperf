@@ -42,7 +42,8 @@ def get_token_throughput_latencies(
     max_num_completed_requests: int = 500,
     test_timeout_s: int =90,
     llm_api: str = "openai",
-    log_prompts: bool = False
+    log_prompts: bool = False,
+    max_num_errors_allowed=0,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Get the token throughput and latencies for the given model.
 
@@ -111,6 +112,13 @@ def get_token_throughput_latencies(
     ):
         iter += 1
 
+        total_requests_with_errors = len([metric for metric in completed_requests
+                                          if metric[common_metrics.ERROR_CODE] is not None])
+
+        if total_requests_with_errors > max_num_errors_allowed:
+            raise Exception(f"Max allowed errors is {max_num_errors_allowed} "
+                            f"but {total_requests_with_errors} errors were received")
+
         default_sampling_params = {"max_tokens": num_output_tokens_list.pop()}
         default_sampling_params.update(additional_sampling_params)
         request_config = RequestConfig(
@@ -142,6 +150,7 @@ def get_token_throughput_latencies(
                     request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = 0
                 request_metrics[common_metrics.REQ_START_TIME] = req_config.sample_time
                 all_metrics.append(request_metrics)
+
             completed_requests.extend(all_metrics)
         pbar.update(len(completed_requests) - num_completed_requests)
         num_completed_requests = len(completed_requests)
@@ -300,6 +309,7 @@ def run_token_benchmark(
     results_dir: str,
     user_metadata: Dict[str, Any],
     log_prompts: bool,
+    max_num_errors_allowed: int,
 ):
     """
     Args:
@@ -336,6 +346,7 @@ def run_token_benchmark(
         num_concurrent_requests=num_concurrent_requests,
         additional_sampling_params=json.loads(additional_sampling_params),
         log_prompts=log_prompts,
+        max_num_errors_allowed=max_num_errors_allowed,
     )
 
     if results_dir:
@@ -370,7 +381,7 @@ def run_token_benchmark(
             raise e
 
     error_rate = summary["results"][common_metrics.ERROR_RATE]
-    if error_rate > 50:
+    if error_rate > 0.5:
         raise Exception("Over 50% of requests contain an error")
 
 
@@ -484,7 +495,14 @@ args.add_argument(
         "If True will log all prompts sent to the model"
     ),
 )
-
+args.add_argument(
+    "--max-num-errors-allowed",
+    type=int,
+    default=0,
+    help=(
+        "Max num of errors tolerated in am LLMPerf run"
+    ),
+)
 
 if __name__ == "__main__":
     env_vars = dict(os.environ)
@@ -511,5 +529,6 @@ if __name__ == "__main__":
         additional_sampling_params=args.additional_sampling_params,
         results_dir=args.results_dir,
         user_metadata=user_metadata,
-        log_prompts=args.log_prompt
+        log_prompts=args.log_prompts,
+        max_num_errors_allowed=args.max_num_errors_allowed,
     )
