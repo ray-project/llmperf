@@ -43,7 +43,7 @@ def get_token_throughput_latencies(
     test_timeout_s: int =90,
     llm_api: str = "openai",
     log_prompts: bool = False,
-    max_num_errors_allowed=0,
+    max_errors_ratio_allowed: float=0.1,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Get the token throughput and latencies for the given model.
 
@@ -112,12 +112,14 @@ def get_token_throughput_latencies(
     ):
         iter += 1
 
-        total_requests_with_errors = len([metric for metric in completed_requests
+        total_requests_with_errors: int = len([metric for metric in completed_requests
                                           if metric[common_metrics.ERROR_CODE] is not None])
+        completed_requests_error_ratio: float = total_requests_with_errors / max_num_completed_requests
 
-        if total_requests_with_errors > max_num_errors_allowed:
-            raise Exception(f"Max allowed errors is {max_num_errors_allowed} "
-                            f"but {total_requests_with_errors} errors were received")
+        if completed_requests_error_ratio > max_errors_ratio_allowed:
+            raise Exception(f"Max errors ratio allowed is {max_errors_ratio_allowed} but "
+                            f"{total_requests_with_errors} / {max_num_completed_requests} "
+                            f"requests contained an error")
 
         default_sampling_params = {"max_tokens": num_output_tokens_list.pop()}
         default_sampling_params.update(additional_sampling_params)
@@ -309,7 +311,7 @@ def run_token_benchmark(
     results_dir: str,
     user_metadata: Dict[str, Any],
     log_prompts: bool,
-    max_num_errors_allowed: int,
+    max_errors_ratio_allowed: float,
 ):
     """
     Args:
@@ -346,7 +348,7 @@ def run_token_benchmark(
         num_concurrent_requests=num_concurrent_requests,
         additional_sampling_params=json.loads(additional_sampling_params),
         log_prompts=log_prompts,
-        max_num_errors_allowed=max_num_errors_allowed,
+        max_errors_ratio_allowed=max_errors_ratio_allowed,
     )
 
     if results_dir:
@@ -496,11 +498,12 @@ args.add_argument(
     ),
 )
 args.add_argument(
-    "--max-num-errors-allowed",
-    type=int,
-    default=0,
+    "--max-errors-ratio-allowed",
+    type=float,
+    default=0.1,
     help=(
-        "Max num of errors tolerated in am LLMPerf run"
+        "Max errors ratio allowed (i.e completed_requests_with_error / max_num_completed_requests) "
+        "tolerated in am LLMPerf run"
     ),
 )
 
@@ -517,7 +520,7 @@ if __name__ == "__main__":
             user_metadata[key] = value
 
     run_token_benchmark(
-        llm_api=args.llm_api,
+        llm_api="openai",
         model=args.model,
         test_timeout_s=args.timeout,
         max_num_completed_requests=args.max_num_completed_requests,
@@ -530,5 +533,5 @@ if __name__ == "__main__":
         results_dir=args.results_dir,
         user_metadata=user_metadata,
         log_prompts=args.log_prompts,
-        max_num_errors_allowed=args.max_num_errors_allowed,
+        max_errors_ratio_allowed=args.max_errors_ratio_allowed,
     )
