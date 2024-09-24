@@ -516,7 +516,7 @@ if __name__ == "__main__":
             user_metadata[key] = value
 
     run_token_benchmark(
-        llm_api="openai",
+        llm_api=args.llm_api,
         model=args.model,
         test_timeout_s=args.timeout,
         max_num_completed_requests=args.max_num_completed_requests,
