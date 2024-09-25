@@ -160,7 +160,7 @@ def get_token_throughput_latencies(
     pbar.close()
     end_time = time.monotonic()
     if end_time - start_time >= test_timeout_s:
-        print("Test timed out before all requests could be completed.")
+        raise Exception(f"Test timed out after {test_timeout_s} seconds before all requests could be completed.")
 
     # check one last time that there are no remaining results to collect.
     outs = req_launcher.get_next_ready()
