@@ -28,7 +28,7 @@ from transformers import LlamaTokenizerFast, AutoTokenizer
 
 def get_tokenizer(model: str) -> LlamaTokenizerFast | AutoTokenizer:
     model = model.replace("huggingface/", "")
-    return AutoTokenizer.from_pretrained(model)
+    return AutoTokenizer.from_pretrained(model, trust_remote_code=True)
 
 
 def get_token_throughput_latencies(
