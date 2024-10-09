@@ -57,12 +57,10 @@ def upload_to_s3(results_path: str, s3_path: str) -> None:
 
 
 def randomly_sample_sonnet_lines_prompt(
+    tokenizer,
     prompt_tokens_mean: int = 550,
     prompt_tokens_stddev: int = 250,
-    expect_output_tokens: int = 150,
-    tokenizer = LlamaTokenizerFast.from_pretrained(
-        "hf-internal-testing/llama-tokenizer")
-) -> Tuple[str, int]:
+    expect_output_tokens: int = 150) -> Tuple[str, int]:
     """Generate a prompt that randomly samples lines from a the shakespeare sonnet at sonnet.txt.
 
     Args:
@@ -93,29 +91,40 @@ def randomly_sample_sonnet_lines_prompt(
     num_prompt_tokens = sample_random_positive_int(
         prompt_tokens_mean, prompt_tokens_stddev
     )
+
     while num_prompt_tokens < get_token_length(prompt):
         num_prompt_tokens = sample_random_positive_int(
             prompt_tokens_mean, prompt_tokens_stddev
         )
+
     remaining_prompt_tokens = num_prompt_tokens - get_token_length(prompt)
-    sonnet_path = pathlib.Path(__file__).parent.resolve() / "sonnet.txt"
+
+    sonnet_path = pathlib.Path(__file__).parent.resolve() / "dolly.txt"
     with open(sonnet_path, "r") as f:
         sonnet_lines = f.readlines()
     random.shuffle(sonnet_lines)
+
     sampling_lines = True
     while sampling_lines:
         for line in sonnet_lines:
-            line_to_add = line
-            if remaining_prompt_tokens - get_token_length(line_to_add) < 0:
-                # This will cut off a line in the middle of a word, but that's ok since an
-                # llm should be able to handle that.
-                line_to_add = line_to_add[: int(math.ceil(remaining_prompt_tokens))]
+            trimmed_line = trim_line_optimally_if_exceeds_remaining_tokens(line,
+                                                                           remaining_prompt_tokens,
+                                                                           get_token_length)
+            prompt += trimmed_line
+            remaining_prompt_tokens -= get_token_length(trimmed_line)
+
+            if len(line) != len(trimmed_line) or remaining_prompt_tokens == 0:
                 sampling_lines = False
-                prompt += line_to_add
                 break
-            prompt += line_to_add
-            remaining_prompt_tokens -= get_token_length(line_to_add)
-    return (prompt, num_prompt_tokens)
+
+    return prompt, (num_prompt_tokens - remaining_prompt_tokens)
+
+
+def trim_line_optimally_if_exceeds_remaining_tokens(line: str, max_tokens: int, get_token_length) -> str:
+    for line_index in reversed(range(len(line) + 1)):
+        trimmed_line = line[:line_index]
+        if get_token_length(trimmed_line) <= max_tokens:
+            return trimmed_line
 
 
 def sample_random_positive_int(mean: int, stddev: int) -> int:

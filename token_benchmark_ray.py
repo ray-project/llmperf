@@ -23,7 +23,13 @@ from llmperf.utils import (
 )
 from tqdm import tqdm
 
-from transformers import LlamaTokenizerFast
+from transformers import LlamaTokenizerFast, AutoTokenizer
+
+
+def get_tokenizer(model: str) -> LlamaTokenizerFast | AutoTokenizer:
+    model = model.replace("huggingface/", "")
+    return AutoTokenizer.from_pretrained(model, trust_remote_code=True)
+
 
 def get_token_throughput_latencies(
     model: str,
@@ -34,8 +40,10 @@ def get_token_throughput_latencies(
     additional_sampling_params: Optional[Dict[str, Any]] = None,
     num_concurrent_requests: int = 1,
     max_num_completed_requests: int = 500,
-    test_timeout_s=90,
-    llm_api="openai",
+    test_timeout_s: int =90,
+    llm_api: str = "openai",
+    log_prompts: bool = False,
+    max_errors_ratio_allowed: float=0.1,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Get the token throughput and latencies for the given model.
 
@@ -59,11 +67,9 @@ def get_token_throughput_latencies(
     """
     random.seed(11111)
 
-    tokenizer = LlamaTokenizerFast.from_pretrained(
-        "hf-internal-testing/llama-tokenizer"
-    )
+    tokenizer = get_tokenizer(model=model)
     get_token_length = lambda text: len(tokenizer.encode(text))
-    
+
     if not additional_sampling_params:
         additional_sampling_params = {}
 
@@ -81,19 +87,39 @@ def get_token_throughput_latencies(
         num_output_tokens_list.append(num_output_tokens)
 
         prompts.append(randomly_sample_sonnet_lines_prompt(
+            tokenizer=tokenizer,
             prompt_tokens_mean=mean_input_tokens,
             prompt_tokens_stddev=stddev_input_tokens,
             expect_output_tokens=num_output_tokens,
-            tokenizer=tokenizer
         ))
+
+    if log_prompts:
+        print("Sending the following prompts:")
+        print(prompts)
+    else:
+        # 'prompts' is an array of tuples where each item is (prompt, token_length)
+        print("Sending the following prompt sizes:")
+        print(list(map(lambda prompt_with_token_count: prompt_with_token_count[1], prompts)))
+
     start_time = time.monotonic()
     iter = 0
     pbar = tqdm(total=max_num_completed_requests)
     while (
         time.monotonic() - start_time < test_timeout_s
         and len(completed_requests) < max_num_completed_requests
+        # https://github.com/vllm-project/vllm/issues/2484
+        and len(num_output_tokens_list) > 0  # happens when requests are aborted
     ):
         iter += 1
+
+        total_requests_with_errors: int = len([metric for metric in completed_requests
+                                          if metric[common_metrics.ERROR_CODE] is not None])
+        completed_requests_error_ratio: float = total_requests_with_errors / max_num_completed_requests
+
+        if completed_requests_error_ratio > max_errors_ratio_allowed:
+            raise Exception(f"Max errors ratio allowed is {max_errors_ratio_allowed} but "
+                            f"{total_requests_with_errors} / {max_num_completed_requests} "
+                            f"requests contained an error")
 
         default_sampling_params = {"max_tokens": num_output_tokens_list.pop()}
         default_sampling_params.update(additional_sampling_params)
@@ -101,6 +127,7 @@ def get_token_throughput_latencies(
             model=model,
             prompt=prompts.pop(),
             sampling_params=default_sampling_params,
+            sample_time=time.monotonic() - start_time,
             llm_api=llm_api,
         )
         req_launcher.launch_requests(request_config)
@@ -111,16 +138,21 @@ def get_token_throughput_latencies(
             outs = req_launcher.get_next_ready()
             all_metrics = []
             for out in outs:
-                request_metrics, gen_text, _ = out
+                request_metrics, gen_text, req_config = out
                 num_output_tokens = get_token_length(gen_text)
-                if num_output_tokens: 
+                if num_output_tokens:
                     request_metrics[common_metrics.INTER_TOKEN_LAT] /= num_output_tokens
                 else:
                     request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
                 request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
                 request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
-                request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
+                if request_metrics[common_metrics.E2E_LAT] > 0:
+                    request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
+                else:
+                    request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = 0
+                request_metrics[common_metrics.REQ_START_TIME] = req_config.sample_time
                 all_metrics.append(request_metrics)
+
             completed_requests.extend(all_metrics)
         pbar.update(len(completed_requests) - num_completed_requests)
         num_completed_requests = len(completed_requests)
@@ -128,7 +160,7 @@ def get_token_throughput_latencies(
     pbar.close()
     end_time = time.monotonic()
     if end_time - start_time >= test_timeout_s:
-        print("Test timed out before all requests could be completed.")
+        raise Exception(f"Test timed out after {test_timeout_s} seconds before all requests could be completed.")
 
     # check one last time that there are no remaining results to collect.
     outs = req_launcher.get_next_ready()
@@ -136,14 +168,16 @@ def get_token_throughput_latencies(
     for out in outs:
         request_metrics, gen_text, _ = out
         num_output_tokens = get_token_length(gen_text)
-        if num_output_tokens: 
+        if num_output_tokens:
             request_metrics[common_metrics.INTER_TOKEN_LAT] /= num_output_tokens
         else:
             request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
         request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = num_output_tokens
         request_metrics[common_metrics.NUM_TOTAL_TOKENS] = request_metrics[common_metrics.NUM_INPUT_TOKENS] + num_output_tokens
-        request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
-                
+        if request_metrics[common_metrics.E2E_LAT] > 0:
+            request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = num_output_tokens / request_metrics[common_metrics.E2E_LAT]
+        else:
+            request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = 0
         all_metrics.append(request_metrics)
     completed_requests.extend(all_metrics)
 
@@ -161,7 +195,7 @@ def get_token_throughput_latencies(
     }
 
     metadata["results"] = ret
-        
+
     return metadata, completed_requests
 
 
@@ -200,7 +234,7 @@ def metrics_summary(
 
     df = pd.DataFrame(metrics)
     df_without_errored_req = df[df[common_metrics.ERROR_CODE].isna()]
-    
+
     for key in [
         common_metrics.INTER_TOKEN_LAT,
         common_metrics.TTFT,
@@ -259,7 +293,7 @@ def metrics_summary(
 
     ret[common_metrics.NUM_COMPLETED_REQUESTS] = num_completed_requests
     ret[common_metrics.COMPLETED_REQUESTS_PER_MIN] = num_completed_requests_per_min
-    
+
     return ret
 
 
@@ -276,6 +310,8 @@ def run_token_benchmark(
     additional_sampling_params: str,
     results_dir: str,
     user_metadata: Dict[str, Any],
+    log_prompts: bool,
+    max_errors_ratio_allowed: float,
 ):
     """
     Args:
@@ -311,6 +347,8 @@ def run_token_benchmark(
         stddev_output_tokens=stddev_output_tokens,
         num_concurrent_requests=num_concurrent_requests,
         additional_sampling_params=json.loads(additional_sampling_params),
+        log_prompts=log_prompts,
+        max_errors_ratio_allowed=max_errors_ratio_allowed,
     )
 
     if results_dir:
@@ -446,6 +484,24 @@ args.add_argument(
         "name=foo,bar=1. These will be added to the metadata field of the results. "
     ),
 )
+args.add_argument(
+    "--log-prompts",
+    type=bool,
+    action=argparse.BooleanOptionalAction,
+    default=False,
+    help=(
+        "If True will log all prompts sent to the model"
+    ),
+)
+args.add_argument(
+    "--max-errors-ratio-allowed",
+    type=float,
+    default=0.1,
+    help=(
+        "Max errors ratio allowed (i.e completed_requests_with_error / max_num_completed_requests) "
+        "tolerated in am LLMPerf run"
+    ),
+)
 
 if __name__ == "__main__":
     env_vars = dict(os.environ)
@@ -472,4 +528,6 @@ if __name__ == "__main__":
         additional_sampling_params=args.additional_sampling_params,
         results_dir=args.results_dir,
         user_metadata=user_metadata,
+        log_prompts=args.log_prompts,
+        max_errors_ratio_allowed=args.max_errors_ratio_allowed,
     )
