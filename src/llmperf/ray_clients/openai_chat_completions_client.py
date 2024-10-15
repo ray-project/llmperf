@@ -57,7 +57,7 @@ class OpenAIChatCompletionsClient(LLMClient):
         headers = {"Authorization": f"Bearer {key}"}
         try:
             with requests.post(
-                str(yarl.URL(address).with_path("/chat/completions")),
+                yarl.URL(address).with_path("/chat/completions"),
                 json=body,
                 stream=True,
                 timeout=180,
