@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import ray
 import requests
-import yarl
+from yarl import URL
 
 from llmperf.ray_llm_client import LLMClient
 from llmperf.models import RequestConfig
@@ -57,7 +57,7 @@ class OpenAIChatCompletionsClient(LLMClient):
         headers = {"Authorization": f"Bearer {key}"}
         try:
             with requests.post(
-                yarl.URL(address).with_path("/chat/completions"),
+                URL(address).with_path("/chat/completions"),
                 json=body,
                 stream=True,
                 timeout=180,
