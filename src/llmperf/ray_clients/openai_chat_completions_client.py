@@ -89,10 +89,11 @@ class OpenAIChatCompletionsClient(LLMClient):
                     if chunk == b"[DONE]":
                         continue
                     tokens_received += 1
+                    data = json.loads(chunk)
+
                     print("------DATA---------")
                     print(data)
                     print("------DATA---------")
-                    data = json.loads(chunk)
 
                     if "error" in data:
                         error_msg = data["error"]["message"]
