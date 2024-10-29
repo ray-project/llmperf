@@ -78,10 +78,6 @@ class OpenAIChatCompletionsClient(LLMClient):
                 for chunk in response.iter_lines(chunk_size=None):
                     chunk = chunk.strip()
 
-                    print("-----CHUNK----------")
-                    print(chunk)
-                    print("-----CHUNK----------")
-
                     if not chunk:
                         continue
                     stem = "data: "
@@ -89,9 +85,6 @@ class OpenAIChatCompletionsClient(LLMClient):
                     if chunk == b"[DONE]":
                         continue
                     tokens_received += 1
-                    print("------DATA---------")
-                    print(data)
-                    print("------DATA---------")
                     data = json.loads(chunk)
 
                     if "error" in data:
