@@ -26,10 +26,14 @@ from tqdm import tqdm
 from transformers import LlamaTokenizerFast, AutoTokenizer
 
 
-def get_tokenizer(model: str) -> LlamaTokenizerFast | AutoTokenizer:
-    model = model.replace("huggingface/", "")
-    return AutoTokenizer.from_pretrained(model, trust_remote_code=True)
-
+def get_tokenizer(model: str) -> LlamaTokenizerFast:
+    # model = model.replace("huggingface/", "")
+    # return AutoTokenizer.from_pretrained(model, trust_remote_code=True)
+    # Implementing https://jounce.atlassian.net/browse/JN-771 and https://jounce.atlassian.net/browse/JN-772
+    tokenizer = LlamaTokenizerFast.from_pretrained(
+        "hf-internal-testing/llama-tokenizer"
+    )
+    return tokenizer
 
 def get_token_throughput_latencies(
     model: str,
