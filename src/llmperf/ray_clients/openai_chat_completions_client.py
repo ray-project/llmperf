@@ -58,7 +58,7 @@ class OpenAIChatCompletionsClient(LLMClient):
             raise ValueError("No host provided.")
         if not address.endswith("/"):
             address = address + "/"
-        address += "chat/completions"
+        address += "v1/chat/completions"
         try:
             with requests.post(
                 address,
