@@ -25,9 +25,9 @@ LINE 3,
 ...
 ```
 
-Where the lines are randomly sampled from a collection of lines from Shakespeare sonnets. Tokens are counted using the `LlamaTokenizer` regardless of which LLM API is being tested. This is to ensure that the prompts are consistent across different LLM APIs.
+Where the lines are randomly sampled from a collection of lines from Shakespeare sonnets which can be found in `src/llmperf/sonnet.txt`. Tokens are counted using the `LlamaTokenizer` regardless of which LLM API is being tested. This is to ensure that the prompts are consistent across different LLM APIs.
 
-To run the most basic load test you can the token_benchmark_ray script.
+To run the most basic load test you can use the `token_benchmark_ray.py` script.
 
 
 ### Caveats and Disclaimers
